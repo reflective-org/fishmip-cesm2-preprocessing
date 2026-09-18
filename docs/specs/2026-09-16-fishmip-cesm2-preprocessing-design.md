@@ -25,19 +25,20 @@ timeseries generation is needed.
 | SSP2-4.5 (WACCM baseline) | CESM2-WACCM6 | cmip6 | 10 | 2015–2100 ✅ | `…/gdex/data/d651045/CESM2-WACCM-SSP245/b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{001..010}/` |
 | G6-1.5K-SAI | CESM2-WACCM6 | — | 3 | 2035–2084 ✅ | `…/gdex/data/d651059/ARISE-SAI-1.5/b.e21.BW.f09_g17.SSP245-G6-1p5K-SAI.{001,002,003}/` |
 | G6-1.5K-MCB | CESM2.1-CAM6 | smbb | 5 | 2035–2069 ✅ | `/glade/campaign/cgd/amp/walkerl/MCB_feedback_1DOF_smbb/b.e21.BSSP245smbb.f09_g17.MCB-feedback-1DOF.{001..005}/` |
-| SSP2-4.5 (CAM6 baseline) | CESM2.1-CAM6 | smbb | 17 dirs ¹ | 2015–2100 ✅ | `…/gdex/data/d651073/b.e21.BSSP245smbb.f09_g17/b.e21.BSSP245smbb.f09_g17.{001..0NN}/` |
+| SSP2-4.5 (CAM6 baseline) | CESM2.1-CAM6 | smbb | 16 ¹ | 2015–2100 ✅ | `…/gdex/data/d651073/b.e21.BSSP245smbb.f09_g17/b.e21.BSSP245smbb.f09_g17.{001..0NN}/` |
 
 GLADE prefix for the GDEX collections is `/glade/campaign/collections/`. All eight MARBL
 biogeochemistry variables plus `TEMP` are verified present, with continuous monthly
-coverage, for all four rows marked ✅.
+coverage over 2035-01–2069-12, for every member of all four ensembles. Verified on
+Derecho 2026-09-18 by `fishmip-verify-inputs`; re-run it rather than trusting this table.
 
 Note the CAM6 baseline nests one extra level: the case directories sit inside a container
 directory of the same name, not directly under `d651073/`.
 
-¹ 17 case directories, of which some may be extensions rather than distinct members (the
-WACCM collection contains a `.006ext` alongside `.001`–`.010`). Resolve the exact member
-list at catalog time. Either way the baseline ensemble is larger than the 5-member MCB
-ensemble, so ensemble size is not a constraint on the MCB comparison.
+¹ 17 case directories, of which 16 are members with three-digit suffixes; the remaining
+one is excluded by the member glob (the WACCM collection similarly contains a `.006ext`
+alongside `.001`–`.010`). The baseline ensemble is comfortably larger than the 5-member
+MCB ensemble, so ensemble size does not constrain the MCB comparison.
 
 Identified by Kelsey Roberts, 2026-09-16. Correct model configuration (CAM6) and forcing
 variant (`smbb`) to pair with MCB; confirmation from Haruki Hirasawa that it is the
