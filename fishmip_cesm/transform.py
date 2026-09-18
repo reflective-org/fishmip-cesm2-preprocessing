@@ -1,0 +1,84 @@
+"""Derive FishMIP variables from raw CESM POP/MARBL fields."""
+
+import xarray as xr
+
+
+def extract_seafloor(field: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
+    """Take the deepest active level of a 3D field at each column.
+
+    POP's KMT counts active levels per column, so the bottom sits at index
+    KMT - 1.
+    """
+    # Clip before indexing: KMT = 0 is land, and -1 would wrap round to the
+    # deepest level instead of masking.
+    bottom = (kmt - 1).clip(min=0).astype(int)
+    return field.isel(z_t=bottom).where(kmt > 0)
+
+
+# CESM name -> (FishMIP name, multiplicative factor, FishMIP units).
+#
+# mmol/m^3       -> mol m-3      : 1e-3
+# mmol/m^3 cm/s  -> mol m-2 s-1  : 1e-3 mol/mmol * 1e-2 m/cm = 1e-5
+# nmol/cm^2/s    -> mol m-2 s-1  : 1e-9 mol/nmol * 1e4 cm2/m2 = 1e-5
+CONVERSIONS = {
+    "TEMP": ("thetao", 1.0, "degC"),
+    "NO3": ("no3", 1e-3, "mol m-3"),
+    "spC": ("phyc", 1e-3, "mol m-3"),
+    "diatC": ("phydiat", 1e-3, "mol m-3"),
+    "zooC": ("zooc", 1e-3, "mol m-3"),
+    "pocToSed": ("expc-bot", 1e-5, "mol m-2 s-1"),
+    # Vertically integrated, hence m-2. The upstream spec asks for mol m-3 s-1,
+    # which cannot be right for an integral; awaiting Colleen Petrik. The output
+    # name is provisional for the same reason -- there is no CMIP name for this.
+    "zoo_loss_zint": ("zoo_loss", 1e-5, "mol m-2 s-1"),
+    # Grid geometry, cm -> m. POP writes layer thickness as dz directly, so
+    # there is no need to difference z_w_top and z_w_bot.
+    "dz": ("thkcello", 0.01, "m"),
+    "HT": ("deptho", 0.01, "m"),
+}
+
+
+def convert_variable(cesm_name: str, field: xr.DataArray) -> xr.DataArray:
+    """Rename a CESM field to its FishMIP name and convert it to FishMIP units."""
+    fishmip_name, factor, units = CONVERSIONS[cesm_name]
+    converted = field * factor
+    converted.attrs = {"units": units}
+    return converted.rename(fishmip_name)
+
+
+# Vertically integrated primary production is the sum of the particulate and
+# dissolved organic carbon production terms; both share the zint conversion.
+_ZINT_TO_MOL_M2_S = 1e-5
+
+
+def derive_intpp(
+    poc_prod_zint: xr.DataArray,
+    doc_prod_zint: xr.DataArray,
+) -> xr.DataArray:
+    """Vertically integrated primary production from its two MARBL terms."""
+    intpp = (poc_prod_zint + doc_prod_zint) * _ZINT_TO_MOL_M2_S
+    intpp.attrs = {"units": "mol m-2 s-1"}
+    return intpp.rename("intpp")
+
+
+def derive_tob(temperature: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
+    """Sea water potential temperature at the seafloor."""
+    tob = extract_seafloor(temperature, kmt)
+    tob.attrs = {"units": "degC"}
+    return tob.rename("tob")
+
+
+def subset_to_window(data, window):
+    """Clip a monthly time axis to `window`, inclusive of both end months.
+
+    String slicing is deliberate: it selects on year-month regardless of where
+    in the month the timestamp falls, which matters because CESM stamps monthly
+    means mid-month. It also works for both numpy and cftime axes.
+    """
+    (start_year, start_month), (end_year, end_month) = window
+    return data.sel(
+        time=slice(
+            f"{start_year}-{start_month:02d}",
+            f"{end_year}-{end_month:02d}",
+        )
+    )

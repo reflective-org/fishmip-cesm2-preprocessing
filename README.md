@@ -33,6 +33,20 @@ Checking variable names alone is not enough. The candidate CAM6 baseline
 four years of data in two disjoint fragments. `tests/test_catalog.py` carries that
 case as a regression test.
 
+## Stage 2: transform
+
+`fishmip_cesm/transform.py` turns raw CESM fields into FishMIP variables:
+derivation (`intpp`, `tob`), unit conversion, renaming, and time subsetting.
+The conversion table and its arithmetic are documented inline.
+
+Two behaviours worth knowing:
+
+- `extract_seafloor` masks land. POP's `KMT` is a count of active levels, so
+  land is `KMT = 0`; indexing at `KMT - 1` without clipping wraps to `-1` and
+  silently returns the *deepest* level instead of a mask.
+- `subset_to_window` slices on year-month strings, because CESM stamps monthly
+  means mid-month and both end months must be included.
+
 ## Tests
 
 ```
