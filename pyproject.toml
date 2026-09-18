@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fishmip-cesm2-preprocessing"
+version = "0.1.0"
+description = "Preprocess CESM2 POP2/MARBL ocean output into FishMIP forcing"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+fishmip-verify-inputs = "fishmip_cesm.verify_inputs:main"
+
+[tool.setuptools]
+packages = ["fishmip_cesm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
