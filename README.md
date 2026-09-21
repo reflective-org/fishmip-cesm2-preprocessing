@@ -14,6 +14,20 @@ pip install -e .
 On Derecho/Casper, do this inside a conda environment (`module load conda`), not
 against the system Python.
 
+If pip reports *"Defaulting to user installation"*, the console scripts land in
+`~/.local/bin`, which is not on PATH by default:
+
+```
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Otherwise invoke the modules directly, from the repository root:
+
+```
+python -m fishmip_cesm.verify_inputs
+python -m fishmip_cesm.inspect_source
+```
+
 ## Stage 1: verify inputs
 
 All source data is on GLADE at NCAR. Before preprocessing anything, confirm every
