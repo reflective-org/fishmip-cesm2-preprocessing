@@ -1,4 +1,4 @@
-# CESM2 → FishMIP preprocessing: four questions before we build
+# CESM2 → FishMIP preprocessing: five questions before we build
 
 Draft message for Kelsey, Daniele, Haruki, and Colleen.
 
@@ -46,7 +46,24 @@ Does that match what you assumed?
 years of SAI deployment. Do we cap everything at 2069, or run the three-way comparison
 to 2069 and carry SAI alone through 2084?
 
-**4. A few details in the variable table.** Minor, but worth fixing in the doc:
+**4. `intpp` is coming from the wrong variables.** This one matters. The spec maps
+`intpp` to `POC_PROD_zint + DOC_prod_zint`, but that sum is the vertically integrated
+production of *detritus* — organic matter routed into the POC and DOC pools by mortality,
+grazing and aggregation — not photosynthesis.
+
+Integrated globally it comes to **18.2 PgC/yr**, against an expected global NPP of 40–60.
+Using `photoC_TOT_zint` (total carbon fixation, and what CMIP6 CMORizes to `intpp` for
+CESM2) gives **49.3 PgC/yr**, consistent across all four ensembles to within 0.5.
+
+So as specified, BOATS would have been forced with about a third of the real primary
+production — and nothing in the output would have looked wrong: right shape, right
+per-cell magnitude, no errors. Only the global integral exposed it. I've switched to
+`photoC_TOT_zint`; shout if you disagree.
+
+Given that, the zooplankton rows below are worth a proper look rather than being assumed
+fine.
+
+**5. Smaller details in the variable table.**
 - `thkcello` is listed as `z_w_top - z_w_bot`, which comes out negative — should be the
   other way round, and POP gives us `dz` directly anyway.
 - `no3` is listed in `molC m-3`; nitrate should be `mol m-3`.

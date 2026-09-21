@@ -132,7 +132,9 @@ changing them:
    would have been forced with roughly a third of the actual primary production, and
    nothing in the output would have looked obviously wrong.
 
-   `photoC_TOT_zint` is present in every member of all four ensembles.
+   `photoC_TOT_zint` is present in every member of all four ensembles. Switching to it
+   moves global NPP from 18.2 to **49.3 PgC/yr**, consistent to within 0.5 PgC/yr across
+   all four ensembles — confirming the diagnosis rather than merely the fix.
 
 ### `zmeso` fallback
 
@@ -179,6 +181,20 @@ on final physical units, making global-integral conservation checks meaningful.
 - Spot-check one member against the equivalent field in the R2 CESM2-WACCM store for
   `TEMP`, which is the one variable present in both, to confirm no indexing or
   orientation errors.
+
+Validated against real fields on 2026-09-21 by `fishmip-inspect-source`, one member per
+ensemble, year 2040:
+
+| Quantity | Expected | Measured |
+|---|---|---|
+| Global NPP | 40–60 PgC/yr | 49.2–49.7 |
+| Ocean area | ~3.6e14 m² | 3.605e14 |
+| Mean SST | ~18 °C (present day) | 19.4–19.6 at 2040 |
+| Mean seafloor temperature | 1–4 °C | 2.6–2.9 |
+
+Note that min/max alone cannot validate `tob`: in a single-level shelf cell the seafloor
+*is* the surface, so both fields share their extremes. The area-weighted mean is the check
+that discriminates.
 
 ## Outputs
 
