@@ -17,11 +17,15 @@ from pathlib import Path
 import xarray as xr
 
 from fishmip_cesm.catalog import parse_timeseries_filename
-from fishmip_cesm.diagnostics import area_weighted_total, to_pg_c_per_year
+from fishmip_cesm.diagnostics import (
+    area_weighted_mean,
+    area_weighted_total,
+    to_pg_c_per_year,
+)
 from fishmip_cesm.ensembles import ENSEMBLES
 from fishmip_cesm.transform import (
     convert_variable,
-    derive_intpp,
+    derive_detrital_carbon_production,
     derive_tob,
     subset_to_window,
 )
@@ -75,15 +79,16 @@ def inspect(ensemble, year: int) -> bool:
     kmt = grid["KMT"]
 
     temperature = _open(month_1, "TEMP", year)
+    photo = _open(month_1, "photoC_TOT_zint", year)
     poc = _open(month_1, "POC_PROD_zint", year)
     doc = _open(month_1, "DOC_prod_zint", year)
-    if temperature is None or poc is None or doc is None:
-        print(f"  could not open TEMP/POC_PROD_zint/DOC_prod_zint for {year}")
+    if temperature is None or photo is None:
+        print(f"  could not open TEMP/photoC_TOT_zint for {year}")
         return False
 
     thetao = convert_variable("TEMP", temperature)
     tob = derive_tob(temperature, kmt)
-    intpp = derive_intpp(poc, doc)
+    intpp = convert_variable("photoC_TOT_zint", photo)
 
     _report_range("thetao", thetao)
     _report_range("tob", tob)
@@ -92,13 +97,35 @@ def inspect(ensemble, year: int) -> bool:
     _report_range("deptho", convert_variable("HT", grid["HT"]))
 
     total_area = float(area.where(kmt > 0).sum())
-    print(f"\n  ocean area: {total_area:.4g} m2  (expect ~3.6e14)")
+    print(f"\n  ocean area:   {total_area:.4g} m2  (expect ~3.6e14)")
+
+    # Surface vs seafloor mean is the check that discriminates: min/max are
+    # dominated by shallow shelf cells, where the seafloor IS the surface.
+    sst = area_weighted_mean(thetao.isel(z_t=0).mean("time"), area)
+    bottom = area_weighted_mean(tob.mean("time"), area)
+    temp_ok = bottom < sst - 5.0
+    print(
+        f"  mean SST:     {sst:6.2f} degC (expect ~18)\n"
+        f"  mean seafloor:{bottom:6.2f} degC (expect ~1-4)  "
+        f"{'ok' if temp_ok else 'SUSPECT -- check KMT indexing'}"
+    )
 
     npp = to_pg_c_per_year(area_weighted_total(intpp.mean("time"), area))
     low, high = EXPECTED_NPP_RANGE
-    verdict = "ok" if low <= npp <= high else "OUT OF RANGE"
-    print(f"  global NPP: {npp:.1f} PgC/yr  (expect {low:.0f}-{high:.0f})  {verdict}")
-    return verdict == "ok"
+    npp_ok = low <= npp <= high
+    print(f"  global NPP:   {npp:.1f} PgC/yr (expect {low:.0f}-{high:.0f})  "
+          f"{'ok' if npp_ok else 'OUT OF RANGE'}")
+
+    if poc is not None and doc is not None:
+        detrital = derive_detrital_carbon_production(poc, doc)
+        detrital_pg = to_pg_c_per_year(
+            area_weighted_total(detrital.mean("time"), area)
+        )
+        print(
+            f"  (for comparison, the spec's POC_PROD+DOC_prod sum: "
+            f"{detrital_pg:.1f} PgC/yr -- detritus, not production)"
+        )
+    return temp_ok and npp_ok
 
 
 def main() -> int:

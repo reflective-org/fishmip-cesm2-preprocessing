@@ -65,7 +65,7 @@ Source grid is POP2 gx1v7: 384 × 320 curvilinear, displaced pole, 60 z-levels.
 
 | FishMIP | Model | CESM source | Derivation | Unit conversion |
 |---|---|---|---|---|
-| `intpp` | BOATS | `POC_PROD_zint` + `DOC_prod_zint` | sum | `mmol/m³·cm/s` → `mol m⁻² s⁻¹`: × 1e-5 |
+| `intpp` | BOATS | `photoC_TOT_zint` | none | `mmol/m³·cm/s` → `mol m⁻² s⁻¹`: × 1e-5 |
 | `thetao` | FEISTY, BOATS | `TEMP` | none (3D) | °C → °C: none |
 | `tob` | FEISTY, BOATS | `TEMP` | index bottom active level via `KMT` | °C → °C: none |
 | `expc-bot` | FEISTY, BOATS | `pocToSed` | none — already 2D | `nmol/cm²/s` → `mol m⁻² s⁻¹`: × 1e-5 |
@@ -80,7 +80,7 @@ Source grid is POP2 gx1v7: 384 × 320 curvilinear, displaced pole, 60 z-levels.
 
 ### Corrections to the upstream spec
 
-Four items in the spec's Data Inputs table need adjusting. Flagging rather than silently
+Five items in the spec's Data Inputs table need adjusting. Flagging rather than silently
 changing them:
 
 1. **`thkcello` derivation.** The spec gives `z_w_top - z_w_bot`, which is negative —
@@ -119,6 +119,20 @@ changing them:
    so confirm the values there rather than relying on repo defaults. There is no
    indication of custom BGC tuning in these runs (the MCB intervention is atmospheric),
    so the defaults above are a sound fallback. *Decision owner: Colleen Petrik.*
+
+5. **`intpp` comes from `photoC_TOT_zint`, not `POC_PROD_zint + DOC_prod_zint`.**
+   This is the most consequential correction. The spec's sum is the vertically
+   integrated production of *detritus* — organic matter routed into the POC and DOC
+   pools by mortality, grazing and aggregation — not photosynthesis. `photoC_TOT_zint`
+   is total carbon fixation, and is what CMIP6 CMORizes to `intpp` for CESM2.
+
+   Caught by the global-integral check in `fishmip-inspect-source`, run against real
+   fields on 2026-09-21: the spec's sum integrates to **18.2 PgC/yr** across all four
+   ensembles, against an expected global NPP of 40–60. Had this gone unnoticed, BOATS
+   would have been forced with roughly a third of the actual primary production, and
+   nothing in the output would have looked obviously wrong.
+
+   `photoC_TOT_zint` is present in every member of all four ensembles.
 
 ### `zmeso` fallback
 

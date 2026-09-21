@@ -21,3 +21,13 @@ _G_PER_PG = 1e15
 def to_pg_c_per_year(mol_c_per_second: float) -> float:
     """Express a carbon flux in the units global NPP is usually quoted in."""
     return mol_c_per_second * _G_C_PER_MOL * _SECONDS_PER_YEAR / _G_PER_PG
+
+
+def area_weighted_mean(field: xr.DataArray, area: xr.DataArray) -> float:
+    """Area-weighted mean, excluding cells where the field is missing.
+
+    Land must drop out of the denominator as well as the numerator, or the mean
+    is diluted by the area of cells that contributed nothing.
+    """
+    valid_area = area.where(field.notnull())
+    return float((field * valid_area).sum() / valid_area.sum())

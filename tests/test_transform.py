@@ -4,7 +4,7 @@ import xarray as xr
 
 from fishmip_cesm.transform import (
     convert_variable,
-    derive_intpp,
+    derive_detrital_carbon_production,
     derive_tob,
     extract_seafloor,
 )
@@ -62,6 +62,7 @@ def test_converts_nitrate_from_mmol_per_m3_to_mol_per_m3():
         ("dz", "thkcello", 500.0, 5.0, "m"),
         ("HT", "deptho", 400000.0, 4000.0, "m"),
         ("TAREA", "areacello", 1.0e10, 1.0e6, "m2"),
+        ("photoC_TOT_zint", "intpp", 2.0, 2.0e-5, "mol m-2 s-1"),
     ],
 )
 def test_converts_each_single_source_variable(
@@ -74,15 +75,17 @@ def test_converts_each_single_source_variable(
     np.testing.assert_allclose(converted.values, [expected])
 
 
-def test_intpp_sums_particulate_and_dissolved_carbon_production():
+def test_detrital_production_sums_the_particulate_and_dissolved_terms():
+    # NOT primary production -- this is organic matter routed into the POC and
+    # DOC pools. Retained only to compare against intpp; see the design doc.
     poc_prod = xr.DataArray([2.0], dims="x")  # mmol/m^3 cm/s
     doc_prod = xr.DataArray([3.0], dims="x")
 
-    intpp = derive_intpp(poc_prod, doc_prod)
+    detrital = derive_detrital_carbon_production(poc_prod, doc_prod)
 
-    assert intpp.name == "intpp"
-    assert intpp.attrs["units"] == "mol m-2 s-1"
-    np.testing.assert_allclose(intpp.values, [5.0e-5])
+    assert detrital.name == "detrital_c_prod"
+    assert detrital.attrs["units"] == "mol m-2 s-1"
+    np.testing.assert_allclose(detrital.values, [5.0e-5])
 
 
 def test_tob_is_temperature_at_the_seafloor():

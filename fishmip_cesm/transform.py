@@ -38,6 +38,9 @@ CONVERSIONS = {
     # POP writes cell area in cm^2, not m^2. Getting this wrong scales every
     # global integral by 1e4.
     "TAREA": ("areacello", 1e-4, "m2"),
+    # Total carbon fixation: this, not POC_PROD_zint + DOC_prod_zint, is
+    # primary production. CMIP6 CMORizes photoC_TOT_zint to intpp for CESM2.
+    "photoC_TOT_zint": ("intpp", 1e-5, "mol m-2 s-1"),
 }
 
 
@@ -49,19 +52,24 @@ def convert_variable(cesm_name: str, field: xr.DataArray) -> xr.DataArray:
     return converted.rename(fishmip_name)
 
 
-# Vertically integrated primary production is the sum of the particulate and
-# dissolved organic carbon production terms; both share the zint conversion.
 _ZINT_TO_MOL_M2_S = 1e-5
 
 
-def derive_intpp(
+def derive_detrital_carbon_production(
     poc_prod_zint: xr.DataArray,
     doc_prod_zint: xr.DataArray,
 ) -> xr.DataArray:
-    """Vertically integrated primary production from its two MARBL terms."""
-    intpp = (poc_prod_zint + doc_prod_zint) * _ZINT_TO_MOL_M2_S
-    intpp.attrs = {"units": "mol m-2 s-1"}
-    return intpp.rename("intpp")
+    """Vertically integrated production of particulate and dissolved detritus.
+
+    The upstream spec proposed this sum as `intpp`, but it is not primary
+    production -- it is organic matter routed into the POC and DOC pools by
+    mortality, grazing and aggregation. Integrated globally it comes to roughly
+    a third of net primary production. Kept so the two can be compared; use
+    `photoC_TOT_zint` for `intpp`.
+    """
+    detrital = (poc_prod_zint + doc_prod_zint) * _ZINT_TO_MOL_M2_S
+    detrital.attrs = {"units": "mol m-2 s-1"}
+    return detrital.rename("detrital_c_prod")
 
 
 def derive_tob(temperature: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:

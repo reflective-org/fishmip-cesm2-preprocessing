@@ -21,6 +21,11 @@ ANALYSIS_WINDOW: Span = ((2035, 1), (2069, 12))
 # not separate timeseries, so they are not listed.
 REQUIRED_VARIABLES = [
     "TEMP",
+    # Primary production. The upstream spec proposed POC_PROD_zint +
+    # DOC_prod_zint, which is detrital production and about a third of NPP;
+    # photoC_TOT_zint is total carbon fixation and what CMIP6 maps to intpp.
+    "photoC_TOT_zint",
+    # Retained for comparison against photoC_TOT_zint, not used for intpp.
     "POC_PROD_zint",
     "DOC_prod_zint",
     "pocToSed",
