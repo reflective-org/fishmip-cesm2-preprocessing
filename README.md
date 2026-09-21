@@ -47,6 +47,29 @@ Two behaviours worth knowing:
 - `subset_to_window` slices on year-month strings, because CESM stamps monthly
   means mid-month and both end months must be included.
 
+## Stage 2 check: inspect real fields
+
+Before building the regrid, confirm the conversions are right against actual
+data. Run on Derecho/Casper:
+
+```
+fishmip-inspect-source                 # all four ensembles, year 2040
+fishmip-inspect-source --ensemble MCB --year 2050
+```
+
+It opens one member per ensemble, applies the transforms and prints quantities
+whose magnitude is known independently:
+
+- **global NPP** should be roughly 40-60 PgC/yr. This is the real test of the
+  `intpp` conversion -- a wrong power of ten shows up immediately here and
+  nowhere else.
+- **ocean area** should be about 3.6e14 m2, which checks the `TAREA` cm2 -> m2
+  conversion.
+- **thetao / tob** ranges should sit within about -2 to 32 degC, and `tob`
+  should be markedly colder than `thetao`.
+
+Nothing is written; it is read-only.
+
 ## Tests
 
 ```

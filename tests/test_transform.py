@@ -61,6 +61,7 @@ def test_converts_nitrate_from_mmol_per_m3_to_mol_per_m3():
         ("zoo_loss_zint", "zoo_loss", 2.0, 2.0e-5, "mol m-2 s-1"),
         ("dz", "thkcello", 500.0, 5.0, "m"),
         ("HT", "deptho", 400000.0, 4000.0, "m"),
+        ("TAREA", "areacello", 1.0e10, 1.0e6, "m2"),
     ],
 )
 def test_converts_each_single_source_variable(

@@ -35,6 +35,9 @@ CONVERSIONS = {
     # there is no need to difference z_w_top and z_w_bot.
     "dz": ("thkcello", 0.01, "m"),
     "HT": ("deptho", 0.01, "m"),
+    # POP writes cell area in cm^2, not m^2. Getting this wrong scales every
+    # global integral by 1e4.
+    "TAREA": ("areacello", 1e-4, "m2"),
 }
 
 
