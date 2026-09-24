@@ -26,12 +26,12 @@ from fishmip_cesm.regrid import (
     steradians_to_square_metres,
     variable_kind,
 )
-from fishmip_cesm.transform import convert_variable, derive_tob
+from fishmip_cesm.transform import convert_variable, depth_dim, derive_tob
 from fishmip_cesm.validate import format_report, gate_passed, validate_variable
 
-# CESM source -> what we do with it. 3D fields are checked at the surface; the
-# regrid is horizontal, so a single level exercises the same code path.
-SURFACE_OF_3D = {"NO3", "spC", "diatC", "zooC"}
+# 3D fields are checked at their top level; the regrid is horizontal, so one
+# level exercises the same code path. Which depth dimension they carry varies:
+# MARBL writes its ecosystem tracers on z_t_150m, not z_t.
 DIRECT = ["photoC_TOT_zint", "pocToSed", "zoo_loss_zint", "NO3", "spC", "diatC", "zooC"]
 
 CONSERVATION_TOLERANCE = 1e-6
@@ -102,8 +102,10 @@ def main() -> int:
             print(f"  could not open {cesm_name}, skipping")
             continue
         collapsed = raw.mean("time")
-        if cesm_name in SURFACE_OF_3D:
-            collapsed = collapsed.isel(z_t=0)
+        depth = depth_dim(collapsed)
+        if depth is not None:
+            print(f"  {cesm_name}: 3D on {depth}, checking the top level")
+            collapsed = collapsed.isel({depth: 0})
         converted = convert_variable(cesm_name, collapsed)
         fields[str(converted.name)] = converted
 

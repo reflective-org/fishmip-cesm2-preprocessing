@@ -3,12 +3,30 @@
 import xarray as xr
 
 
+# POP writes full-depth fields on z_t, but MARBL writes its ecosystem tracers
+# (NO3, spC, diatC, zooC) over the top 150 m only, on z_t_150m.
+FULL_DEPTH_DIM = "z_t"
+UPPER_OCEAN_DIM = "z_t_150m"
+_DEPTH_DIMS = (FULL_DEPTH_DIM, UPPER_OCEAN_DIM)
+
+
+def depth_dim(field: xr.DataArray) -> str | None:
+    """Name the field's depth dimension, or None if it has none."""
+    return next((d for d in field.dims if d in _DEPTH_DIMS), None)
+
+
 def extract_seafloor(field: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
     """Take the deepest active level of a 3D field at each column.
 
     POP's KMT counts active levels per column, so the bottom sits at index
-    KMT - 1.
+    KMT - 1. The field must be full depth: KMT indexes the whole 60-level
+    column, so applying it to a 150 m field would read the wrong depths.
     """
+    found = depth_dim(field)
+    if found != FULL_DEPTH_DIM:
+        raise ValueError(
+            f"seafloor extraction needs a {FULL_DEPTH_DIM} field, got {found!r}"
+        )
     # Clip before indexing: KMT = 0 is land, and -1 would wrap round to the
     # deepest level instead of masking.
     bottom = (kmt - 1).clip(min=0).astype(int)

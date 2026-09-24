@@ -136,6 +136,20 @@ changing them:
    moves global NPP from 18.2 to **49.3 PgC/yr**, consistent to within 0.5 PgC/yr across
    all four ensembles — confirming the diagnosis rather than merely the fix.
 
+### The 3D tracers are upper-ocean only
+
+`NO3`, `spC`, `diatC` and `zooC` are written on **`z_t_150m`**, not `z_t` — MARBL outputs
+its ecosystem tracers over the top 150 m (15 levels) rather than the full 60-level column.
+`TEMP` is full depth; the `_zint` and 2D fields are unaffected.
+
+So `no3`, `phyc`, `phydiat` and `zooc` can only be supplied for 0–150 m. Worth confirming
+with Colleen Petrik and Jerome Guiet that this is sufficient for FEISTY and BOATS — it
+plausibly is, since these are upper-ocean quantities for fish forcing, but it is a limit
+on the data rather than a choice we made, and they should know it exists.
+
+`extract_seafloor` refuses a field that is not full depth: `KMT` indexes the whole column,
+so applying it to a 150 m field would read the wrong depths rather than fail.
+
 ### `zmeso` fallback
 
 `zmeso` does not exist in CESM2 under any configuration in these runs. The spec's
