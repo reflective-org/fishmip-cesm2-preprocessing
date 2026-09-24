@@ -212,6 +212,18 @@ queue) with direct GLADE reads — no data transfer.
 Ordering note: unit conversion precedes regridding so the conservative regridder operates
 on final physical units, making global-integral conservation checks meaningful.
 
+### End-to-end validation, 2026-09-24
+
+Every variable passed the gate on real data: WACCM baseline, member 001, year 2040.
+Flux variables conserved to ~1e-16, `intpp` integrated to 49.3083 PgC/yr after regridding
+(unchanged from the native grid), 44504 of 64800 target cells resolved as ocean, and no
+ocean cell was left without a value in any variable.
+
+**What this does and does not cover.** One member, one ensemble, one year, annual means,
+and the top level only for the 3D variables. Still unexercised: the other three ensembles,
+the full 2035–2069 window, monthly rather than annual output, and depth levels below the
+surface. The gate should be run across all four ensembles before any output is written.
+
 ### Negative concentrations are clipped, and the amount is reported
 
 MARBL's advection scheme produces small negative tracer values. They are numerical rather
