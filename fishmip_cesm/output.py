@@ -11,13 +11,16 @@ def unflatten(flat: xr.DataArray) -> xr.DataArray:
     SCRIP lists cells with longitude varying fastest, which is row-major over
     (lat, lon). Getting this wrong transposes the map -- the Pacific ends up
     over Africa -- and nothing downstream would object.
+
+    Leading dimensions (time, depth) are carried through unchanged.
     """
     grid = fishmip_grid()
     n_lat = grid.sizes["lat"]
     n_lon = grid.sizes["lon"]
+    leading = flat.shape[:-1]
     return xr.DataArray(
-        flat.values.reshape(n_lat, n_lon),
-        dims=("lat", "lon"),
+        flat.values.reshape(*leading, n_lat, n_lon),
+        dims=flat.dims[:-1] + ("lat", "lon"),
         coords={"lat": grid["lat"].values, "lon": grid["lon"].values},
     )
 

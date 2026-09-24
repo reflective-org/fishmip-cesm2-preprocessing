@@ -62,3 +62,14 @@ def test_dataset_identifies_the_simulation_it_describes():
 
 def test_dataset_keeps_the_variable_units():
     assert _dataset()["intpp"].attrs["units"] == "mol m-2 s-1"
+
+
+def test_unflatten_preserves_leading_time_and_depth_dimensions():
+    flat = xr.DataArray(
+        np.arange(2 * 180 * 360, dtype=float).reshape(2, -1), dims=("time", "cell")
+    )
+
+    field = unflatten(flat)
+
+    assert field.dims == ("time", "lat", "lon")
+    assert float(field.isel(time=1).sel(lat=-89.5, lon=-179.5)) == 64800.0

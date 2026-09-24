@@ -163,3 +163,24 @@ def test_concentration_regrid_weights_the_ocean_parts_by_their_share():
     result = regrid_concentration(field, weights, n_target=1)
 
     np.testing.assert_allclose(result.values, [17.0])
+
+
+def test_apply_weights_regrids_many_timesteps_in_one_call():
+    # The full job is 420 months by up to 60 levels per variable; regridding
+    # one field at a time would dominate the runtime.
+    weights = _weights([0.25, 0.75], rows=[1, 1], cols=[1, 2])
+    field = xr.DataArray([[4.0, 8.0], [8.0, 16.0]], dims=("time", "cell"))
+
+    result = apply_weights(field, weights, n_target=1)
+
+    assert result.dims == ("time", "cell")
+    np.testing.assert_allclose(result.values, [[7.0], [14.0]])
+
+
+def test_batched_regrid_still_marks_target_cells_with_no_source():
+    weights = _weights([1.0], rows=[1], cols=[1])
+    field = xr.DataArray([[4.0, 8.0]], dims=("time", "cell"))
+
+    result = apply_weights(field, weights, n_target=2)
+
+    assert np.isnan(result.values[0, 1])

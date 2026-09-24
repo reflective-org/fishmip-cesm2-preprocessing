@@ -7,6 +7,7 @@ it would quietly change how much carbon enters the fish models.
 
 import numpy as np
 import xarray as xr
+from scipy import sparse
 
 
 def fishmip_grid() -> xr.Dataset:
@@ -46,28 +47,37 @@ def apply_weights(
     weights: xr.Dataset,
     n_target: int,
 ) -> xr.DataArray:
-    """Apply an ESMF/SCRIP sparse weight file to a flattened source field.
+    """Apply an ESMF/SCRIP sparse weight file along a field's last dimension.
 
     Weight generation is done once, offline, with ESMF_RegridWeightGen; this is
-    the cheap step that runs per variable and member.
+    the cheap step that runs per variable and member. Leading dimensions (time,
+    depth) are carried through, so a whole timeseries regrids in one matmul
+    rather than one field at a time.
 
     Target cells that receive no weights come back as NaN rather than zero. For
     a flux that distinction matters: zero is a physical claim that nothing is
-    there, whereas these cells are simply outside the source grid's coverage,
-    and summing them as zero would understate nothing but mask a coverage bug.
+    there, whereas these cells are simply outside the source grid's coverage.
     """
+    values = np.asarray(field.values, dtype=float)
+    n_source = values.shape[-1]
+    batch = values.reshape(-1, n_source)
+
     # ESMF writes 1-based indices.
     rows = weights["row"].values - 1
     cols = weights["col"].values - 1
-    sparse = weights["S"].values
+    matrix = sparse.csr_matrix(
+        (weights["S"].values, (rows, cols)), shape=(n_target, n_source)
+    )
 
-    out = np.full(n_target, np.nan)
-    contributions = np.zeros(n_target)
-    np.add.at(contributions, rows, sparse * field.values[cols])
-    touched = np.zeros(n_target, dtype=bool)
-    touched[rows] = True
-    out[touched] = contributions[touched]
-    return xr.DataArray(out, dims="cell")
+    out = (matrix @ batch.T).T
+
+    untouched = np.ones(n_target, dtype=bool)
+    untouched[rows] = False
+    out[:, untouched] = np.nan
+
+    out = out.reshape(*values.shape[:-1], n_target)
+    dims = field.dims[:-1] + ("cell",)
+    return xr.DataArray(out, dims=dims)
 
 
 def fishmip_scrip_grid() -> xr.Dataset:
