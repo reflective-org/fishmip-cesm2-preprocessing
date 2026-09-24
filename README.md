@@ -14,19 +14,20 @@ pip install -e .
 On Derecho/Casper, do this inside a conda environment (`module load conda`), not
 against the system Python.
 
-If pip reports *"Defaulting to user installation"*, the console scripts land in
-`~/.local/bin`, which is not on PATH by default:
-
-```
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Otherwise invoke the modules directly, from the repository root:
+**Invoke the modules directly, from the repository root.** On Casper the shared
+conda environments are read-only, so pip falls back to a user-site install and
+the console scripts land in `~/.local/bin`, which is not on PATH. `python -m`
+sidesteps that entirely:
 
 ```
 python -m fishmip_cesm.verify_inputs
 python -m fishmip_cesm.inspect_source
+python -m fishmip_cesm.make_weights
+python -m fishmip_cesm.check_regrid --weights ...
 ```
+
+The equivalent console scripts (`fishmip-verify-inputs` and friends) work too,
+if `~/.local/bin` is on your PATH.
 
 ## Stage 1: verify inputs
 
@@ -35,7 +36,7 @@ ensemble supplies every required variable with **contiguous** monthly coverage
 across the analysis window:
 
 ```
-fishmip-verify-inputs
+python -m fishmip_cesm.verify_inputs
 ```
 
 It reads GLADE directly and exits non-zero on any missing variable or coverage
@@ -67,8 +68,8 @@ Before building the regrid, confirm the conversions are right against actual
 data. Run on Derecho/Casper:
 
 ```
-fishmip-inspect-source                 # all four ensembles, year 2040
-fishmip-inspect-source --ensemble MCB --year 2050
+python -m fishmip_cesm.inspect_source                      # all four, year 2040
+python -m fishmip_cesm.inspect_source --ensemble MCB --year 2050
 ```
 
 It opens one member per ensemble, applies the transforms and prints quantities
@@ -94,9 +95,9 @@ cheap sparse matmul that runs per variable and member. On Casper:
 
 ```
 module load conda && conda activate npl
-fishmip-make-weights                     # writes the target SCRIP grid
+python -m fishmip_cesm.make_weights      # writes the target SCRIP grid,
                                          # then prints the ESMF command to run
-fishmip-check-regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
+python -m fishmip_cesm.check_regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
 ```
 
 The check regrids one real year of `intpp` and compares the global integral

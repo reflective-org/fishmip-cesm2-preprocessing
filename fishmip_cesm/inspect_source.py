@@ -1,6 +1,6 @@
 """Open one real member on GLADE and sanity-check the stage 2 transforms.
 
-    fishmip-inspect-source [--ensemble NAME] [--year YEAR]
+    python -m fishmip_cesm.inspect_source [--ensemble NAME] [--year YEAR]
 
 Reads a single year from one member, applies the conversions, and reports
 quantities whose correct magnitude is known independently. The point is to catch

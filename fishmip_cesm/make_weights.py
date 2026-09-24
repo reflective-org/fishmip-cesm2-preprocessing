@@ -1,6 +1,6 @@
 """Write the target SCRIP grid and the command that generates regrid weights.
 
-    fishmip-make-weights [--out-dir DIR]
+    python -m fishmip_cesm.make_weights [--out-dir DIR]
 
 Weights are generated once, offline, by ESMF_RegridWeightGen. This writes the
 FishMIP target grid in SCRIP format (the gx1v7 source already ships as SCRIP in
@@ -53,7 +53,7 @@ def main() -> int:
         "\nglobal integral has to survive the regrid."
         "\n"
         "\nThen check the result with:"
-        "\n  fishmip-check-regrid --weights " + str(weights)
+        "\n  python -m fishmip_cesm.check_regrid --weights " + str(weights)
     )
     return 0
 

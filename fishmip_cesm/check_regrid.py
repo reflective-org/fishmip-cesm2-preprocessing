@@ -1,6 +1,6 @@
 """Verify a generated weight file conserves the global integral. Run on Casper.
 
-    fishmip-check-regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
+    python -m fishmip_cesm.check_regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
 
 Regrids one real year of `intpp` from gx1v7 onto the FishMIP grid and compares
 the global integral before and after. A first-order conservative regrid should
