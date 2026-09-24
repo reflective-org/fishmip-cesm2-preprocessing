@@ -95,10 +95,13 @@ cheap sparse matmul that runs per variable and member. On Casper:
 
 ```
 module load conda && conda activate npl
-python -m fishmip_cesm.make_weights      # writes the target SCRIP grid,
-                                         # then prints the ESMF command to run
+python -m fishmip_cesm.make_weights --run
 python -m fishmip_cesm.check_regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
 ```
+
+Without `--run` it writes the target grid and prints the ESMF command instead of
+running it, which is what you want if the weights should be generated inside a
+batch job.
 
 The check regrids one real year of `intpp` and compares the global integral
 before and after. It must come back at ~49.3 PgC/yr with a conservation error at
