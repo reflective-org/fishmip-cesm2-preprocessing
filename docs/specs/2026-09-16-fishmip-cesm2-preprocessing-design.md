@@ -164,6 +164,16 @@ queue) with direct GLADE reads — no data transfer.
 6. **Regrid.** gx1v7 → FishMIP 1° regular grid (360 × 180). **Conservative**, not
    bilinear — `intpp` and `expc-bot` are fluxes and must conserve globally.
 
+   Fluxes and concentrations are regridded differently, and the distinction is not
+   cosmetic. A flux is an integral, so a target cell that is mostly land genuinely
+   receives less and zero-filling the land is correct. A concentration is an average, and
+   zero-filling drags every coastal cell toward zero in proportion to how much land its
+   target cell overlaps. `thetao` treated as a flux would give a coastline several degrees
+   too cold — output that looks entirely plausible on a map. Concentrations are therefore
+   normalised by the regridded ocean fraction. Every variable is classified explicitly in
+   `regrid._VARIABLE_KIND`, with no default, so a variable added later cannot pick up the
+   wrong treatment by omission.
+
    Weights are generated once by `ESMF_RegridWeightGen` from two SCRIP grid
    descriptions: gx1v7 ships as SCRIP in CESM inputdata
    (`share/scripgrids/gx1v7_151008.nc`), and the FishMIP target is written by
@@ -216,15 +226,21 @@ that discriminates.
 
 FishMIP file naming convention, one file per variable / scenario / member.
 
-Destination is unresolved in the upstream spec, which reads "Files to levante (or
-possible to give modelers access to Reflective or AWS paths??)". Two options:
+**Destination: the public Cloudflare R2 bucket** (Kelsey Roberts, 2026-09-24). This
+resolves the upstream spec's open question, which had read "Files to levante (or possible
+to give modelers access to Reflective or AWS paths??)".
 
-- **Levante (DKRZ)** — the FishMIP convention, where modellers already work.
-- **R2 / Reflective paths** — avoids a transfer, but requires granting external
-  collaborators access.
+Two things still needed before anything is written:
 
-These are not mutually exclusive; writing to GLADE first and mirroring is cheap. Decision
-needed — see below.
+- **The exact bucket and prefix.** The rclone `r2` remote currently shows one bucket,
+  `reflective-data-store`, which is not public. Confirm the public bucket's name and the
+  prefix these files belong under.
+- **The FishMIP file naming convention**, which governs filenames and required global
+  attributes.
+
+Write to GLADE first, validate, then upload. Publishing is not reversible in the way a
+local write is: once the files are public they may be fetched and cached by others, so the
+validation in stage 8 gates the upload rather than following it.
 
 ## Open decisions
 
@@ -284,10 +300,10 @@ research objectives is stated.
 
 *Owner: Kelsey Roberts, Daniele Visioni.*
 
-### 4. Output destination
+### 4. Output destination — resolved
 
-Levante, Reflective/R2, or both. *Owner: Kelsey Roberts, with Colleen Petrik, Jerome
-Guiet, and Ryan Heneghan as the consumers.*
+The public Cloudflare R2 bucket (Kelsey Roberts, 2026-09-24). Exact bucket and prefix
+still to confirm; see Outputs.
 
 ## Assumptions
 

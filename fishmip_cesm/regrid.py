@@ -131,3 +131,66 @@ EARTH_RADIUS_M = 6.37122e6
 def steradians_to_square_metres(area: xr.DataArray) -> xr.DataArray:
     """Convert ESMF cell areas, which are written in steradians, to m^2."""
     return area * EARTH_RADIUS_M**2
+
+
+def regrid_concentration(
+    field: xr.DataArray,
+    weights: xr.Dataset,
+    n_target: int,
+) -> xr.DataArray:
+    """Regrid a concentration, averaging over only the ocean part of each cell.
+
+    Fluxes and concentrations cannot be regridded the same way. A flux is an
+    integral: a cell that is nine tenths land contributes a tenth as much, and
+    zero-filling the land is correct. A concentration is an average, and
+    zero-filling drags every coastal cell toward zero in proportion to how much
+    land its target cell overlaps -- a coastline a few degrees too cold, which
+    looks entirely plausible on a map.
+
+    So the field is regridded with land as zero, an ocean mask is regridded the
+    same way, and the first is divided by the second. Cells with no ocean at all
+    come back NaN rather than dividing by zero.
+    """
+    ocean = field.notnull()
+    total = apply_weights(field.fillna(0.0), weights, n_target)
+    ocean_fraction = apply_weights(
+        ocean.astype(float), weights, n_target
+    )
+    return total / ocean_fraction.where(ocean_fraction > 0)
+
+
+# How each FishMIP variable must be regridded. There is no default: a variable
+# added later has to be classified deliberately, because both treatments produce
+# plausible-looking output and only one is right.
+_VARIABLE_KIND = {
+    # Integrals over area. Land contributes nothing and zero-filling is correct.
+    "intpp": "flux",
+    "expc-bot": "flux",
+    "zoo_loss": "flux",
+    # Averages. Must be normalised by the ocean fraction of the target cell.
+    "thetao": "concentration",
+    "tob": "concentration",
+    "no3": "concentration",
+    "phyc": "concentration",
+    "phydiat": "concentration",
+    "zooc": "concentration",
+    "deptho": "concentration",
+    "thkcello": "concentration",
+}
+
+
+def variable_kind(fishmip_name: str) -> str:
+    """Whether a variable regrids as a flux or as a concentration."""
+    return _VARIABLE_KIND[fishmip_name]
+
+
+def regrid_variable(
+    fishmip_name: str,
+    field: xr.DataArray,
+    weights: xr.Dataset,
+    n_target: int,
+) -> xr.DataArray:
+    """Regrid a named FishMIP variable using the treatment its kind requires."""
+    if variable_kind(fishmip_name) == "flux":
+        return apply_weights(field.fillna(0.0), weights, n_target)
+    return regrid_concentration(field, weights, n_target)

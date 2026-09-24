@@ -82,5 +82,9 @@ None of these block me now — all four ensembles are located, so I can start bu
 validating the pipeline. Questions 2 and 3 are the ones that shape how we frame the
 comparison, so they're worth settling before we're deep into analysis.
 
+One decision made: preprocessed output goes to the public Cloudflare R2 bucket rather
+than Levante. I'll need the exact bucket name and prefix, and confirmation of the FishMIP
+file naming convention, before anything gets written there.
+
 Thanks,
 John

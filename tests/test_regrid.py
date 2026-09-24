@@ -7,6 +7,7 @@ from fishmip_cesm.regrid import (
     conservation_error,
     fishmip_grid,
     fishmip_scrip_grid,
+    regrid_concentration,
     steradians_to_square_metres,
 )
 
@@ -131,3 +132,34 @@ def test_converts_cell_area_from_steradians_to_square_metres():
     area = steradians_to_square_metres(whole_sphere)
 
     assert float(area.values[0]) == pytest.approx(5.10e14, rel=1e-2)
+
+
+def test_concentration_regrid_averages_over_the_ocean_part_of_a_cell():
+    # Target cell 1 draws equally from two source cells, one of them land.
+    weights = _weights([0.5, 0.5], rows=[1, 1], cols=[1, 2])
+    field = xr.DataArray([10.0, np.nan], dims="cell")
+
+    result = regrid_concentration(field, weights, n_target=1)
+
+    # Zero-filling would give 5.0 -- a coastal cell half as cold as the water
+    # actually in it, and nothing about the output would look wrong.
+    np.testing.assert_allclose(result.values, [10.0])
+
+
+def test_concentration_regrid_returns_nan_for_a_target_cell_with_no_ocean():
+    weights = _weights([0.5, 0.5], rows=[1, 1], cols=[1, 2])
+    field = xr.DataArray([np.nan, np.nan], dims="cell")
+
+    result = regrid_concentration(field, weights, n_target=1)
+
+    assert np.isnan(result.values[0])
+
+
+def test_concentration_regrid_weights_the_ocean_parts_by_their_share():
+    # Three quarters of the cell is 20 degC water, one quarter is 8 degC water.
+    weights = _weights([0.75, 0.25], rows=[1, 1], cols=[1, 2])
+    field = xr.DataArray([20.0, 8.0], dims="cell")
+
+    result = regrid_concentration(field, weights, n_target=1)
+
+    np.testing.assert_allclose(result.values, [17.0])
