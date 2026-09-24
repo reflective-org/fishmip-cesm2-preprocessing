@@ -273,21 +273,32 @@ that discriminates.
 
 FishMIP file naming convention, one file per variable / scenario / member.
 
-**Destination: the public Cloudflare R2 bucket** (Kelsey Roberts, 2026-09-24). This
-resolves the upstream spec's open question, which had read "Files to levante (or possible
-to give modelers access to Reflective or AWS paths??)".
+**Destination: `reflective-data-store`, under a new `fishmip/` prefix** (Kelsey Roberts,
+2026-09-24). The bucket is publicly readable; writes are authenticated. This resolves the
+upstream spec's open question, which had read "Files to levante (or possible to give
+modelers access to Reflective or AWS paths??)".
 
-Two things still needed before anything is written:
+Credentials come from the environment — `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`R2_ACCOUNT_ID` — and are read at runtime only. They are never written to a file, logged,
+or passed on a command line.
 
-- **The exact bucket and prefix.** The rclone `r2` remote currently shows one bucket,
-  `reflective-data-store`, which is not public. Confirm the public bucket's name and the
-  prefix these files belong under.
-- **The FishMIP file naming convention**, which governs filenames and required global
-  attributes.
+Objects are keyed `fishmip/<scenario>/<filename>`, so a modeller can fetch one experiment
+without listing the whole prefix.
 
-Write to GLADE first, validate, then upload. Publishing is not reversible in the way a
-local write is: once the files are public they may be fetched and cached by others, so the
-validation in stage 8 gates the upload rather than following it.
+**Filenames follow ISIMIP3b/FishMIP forcing conventions, but the pattern is a proposal:**
+
+    <model>_<scenario>_<member>_<variable>_onedeg_global_monthly_<start>_<end>.nc
+    cesm2-waccm6_g6-1p5k-sai_001_intpp_onedeg_global_monthly_2035_2069.nc
+
+The scenario tokens have no established FishMIP spelling — G6-1.5K-SAI and G6-1.5K-MCB
+postdate the protocol — so Kelsey Roberts and Colleen Petrik should confirm before
+anything is published. Renaming published files is worse than naming them correctly first,
+because other people's scripts will already point at the old names. The whole convention
+lives in `naming.py` so changing it is one edit.
+
+Because the bucket is world-readable, uploading *is* publishing. Write to GLADE, pass the
+stage 8 gate, and only then upload: the gate precedes publication rather than following
+it.
 
 ## Open decisions
 
