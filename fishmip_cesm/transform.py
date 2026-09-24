@@ -93,3 +93,20 @@ def subset_to_window(data, window):
             f"{end_year}-{end_month:02d}",
         )
     )
+
+
+# Variables produced by a derive_* function rather than by the conversion table.
+# Their units are set in the function; these are repeated here so there is one
+# place to ask what units any FishMIP variable should carry.
+DERIVED_UNITS = {
+    "tob": "degC",
+    "detrital_c_prod": "mol m-2 s-1",
+}
+
+
+def fishmip_units(fishmip_name: str) -> str:
+    """The units a FishMIP variable should carry, converted or derived."""
+    for name, _, units in CONVERSIONS.values():
+        if name == fishmip_name:
+            return units
+    return DERIVED_UNITS[fishmip_name]

@@ -108,6 +108,28 @@ before and after. It must come back at ~49.3 PgC/yr with a conservation error at
 the level of floating-point noise. Conserving relative to a source we had
 already got wrong would still be wrong, so the absolute value is checked too.
 
+## Stage 8: the validation gate
+
+Output goes to a **public** bucket, so the checks run before upload, not after.
+Publishing is not reversible the way a local write is.
+
+```
+python -m fishmip_cesm.dry_run --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
+```
+
+This takes one member through transform, regrid and validation for every
+variable, writing nothing. Per variable it checks:
+
+- **range** -- catches unit slips and sign errors (a Kelvin/Celsius mix-up puts
+  `thetao` at ~290)
+- **units** -- the attribute survived, and matches the conversion table
+- **ocean coverage** -- no cell that contains ocean is missing a value, which a
+  range check cannot see because a missing value has nothing to be out of range
+- **conservation**, for flux variables only, against the native-grid integral
+
+The gate fails closed: a variable with no declared range or no classification
+stops it rather than passing through.
+
 ## Tests
 
 ```
