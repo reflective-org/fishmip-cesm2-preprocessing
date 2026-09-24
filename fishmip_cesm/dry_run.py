@@ -27,7 +27,13 @@ from fishmip_cesm.regrid import (
     variable_kind,
 )
 from fishmip_cesm.transform import convert_variable, depth_dim, derive_tob
-from fishmip_cesm.validate import format_report, gate_passed, validate_variable
+from fishmip_cesm.validate import (
+    clip_negatives,
+    format_report,
+    gate_passed,
+    may_be_negative,
+    validate_variable,
+)
 
 # 3D fields are checked at their top level; the regrid is horizontal, so one
 # level exercises the same code path. Which depth dimension they carry varies:
@@ -115,6 +121,12 @@ def main() -> int:
         regridded = regrid_variable(name, flat, weights, n_target)
         regridded.attrs = dict(native.attrs)
 
+        clip_report = None
+        if not may_be_negative(name):
+            attrs = dict(regridded.attrs)
+            regridded, clip_report = clip_negatives(name, regridded)
+            regridded.attrs = attrs
+
         checks = validate_variable(name, regridded, ocean)
         ok = gate_passed(checks)
         print(f"{name} ({variable_kind(name)}) {'ok' if ok else 'FAILED'}")
@@ -126,6 +138,8 @@ def main() -> int:
             f"  [--] native range: min {float(native.min()):.4g}, "
             f"max {float(native.max()):.4g}"
         )
+        if clip_report is not None and clip_report.cells:
+            print(f"  [--] {clip_report.describe()}")
 
         if variable_kind(name) == "flux":
             error = conservation_error(

@@ -106,3 +106,60 @@ def format_report(checks: list[Check]) -> str:
     return "\n".join(
         f"  [{'ok' if c.passed else 'FAIL'}] {c.name}: {c.detail}" for c in checks
     )
+
+
+@dataclass(frozen=True)
+class ClipReport:
+    variable: str
+    cells: int
+    most_negative: float
+    removed_fraction: float
+
+    def describe(self) -> str:
+        if self.cells == 0:
+            return f"{self.variable}: nothing clipped"
+        return (
+            f"{self.variable}: clipped {self.cells} cell(s), "
+            f"most negative {self.most_negative:.4g}, "
+            f"{self.removed_fraction:.3%} of the field removed"
+        )
+
+
+def may_be_negative(fishmip_name: str) -> bool:
+    """Whether this variable can physically take negative values."""
+    return PLAUSIBLE_RANGES[fishmip_name][0] < 0
+
+
+def clip_negatives(
+    fishmip_name: str,
+    field: xr.DataArray,
+) -> tuple[xr.DataArray, ClipReport]:
+    """Clip physically impossible negatives to zero, reporting what was removed.
+
+    MARBL's advection scheme produces small negative tracer values. They are
+    numerical, not physical, and negative concentrations are not usable forcing
+    -- but clipping edits data on its way to a public bucket, so the amount
+    removed is reported rather than absorbed silently.
+
+    Refused for variables that may legitimately be negative: sea water reaches
+    -1.9 degC, and clipping temperature would be both wrong and hard to notice.
+    """
+    low, _ = PLAUSIBLE_RANGES[fishmip_name]
+    if low < 0:
+        raise ValueError(
+            f"{fishmip_name} may legitimately be negative; refusing to clip"
+        )
+
+    negative = field < 0
+    cells = int(negative.sum())
+    removed = float(field.where(negative).sum())
+    kept = float(field.where(~negative).sum())
+    return (
+        field.where(~negative, 0.0),
+        ClipReport(
+            variable=fishmip_name,
+            cells=cells,
+            most_negative=float(field.min()) if cells else 0.0,
+            removed_fraction=abs(removed) / kept if kept else 0.0,
+        ),
+    )

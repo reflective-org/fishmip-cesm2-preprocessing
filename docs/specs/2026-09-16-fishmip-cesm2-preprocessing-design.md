@@ -212,6 +212,26 @@ queue) with direct GLADE reads — no data transfer.
 Ordering note: unit conversion precedes regridding so the conservative regridder operates
 on final physical units, making global-integral conservation checks meaningful.
 
+### Negative concentrations are clipped, and the amount is reported
+
+MARBL's advection scheme produces small negative tracer values. They are numerical rather
+than physical, and they are present in the **raw** output: concentration regridding is a
+weighted mean with non-negative weights, so its result is bounded by the source and cannot
+introduce them.
+
+Measured in the 2026-09-24 dry run (WACCM baseline, 2040, surface), against each field's
+maximum: `no3` −1.3e-4 (0.6%), `phydiat` −7.4e-4 (1.3%), `phyc` −2.2e-7 (0.003%).
+
+Negative concentrations are not usable forcing, so they are clipped to zero (decision:
+Kelsey Roberts, 2026-09-24). Because this edits data on its way to a public bucket, every
+clip is reported — cells affected, most negative value, and the proportion of the field
+removed — rather than absorbed silently.
+
+Clipping is **refused** for variables that may legitimately be negative. Sea water reaches
+−1.9 °C, and clipping `thetao` or `tob` would be both wrong and hard to notice. The
+permitted set is derived from the lower bound in `PLAUSIBLE_RANGES` rather than listed
+separately, so the two cannot drift apart.
+
 ### Validation
 
 - Global integral of `intpp` and `expc-bot` preserved across regridding to within
