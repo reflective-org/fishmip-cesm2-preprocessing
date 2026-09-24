@@ -15,6 +15,8 @@ dev = ["pytest>=7", "pandas"]
 [project.scripts]
 fishmip-verify-inputs = "fishmip_cesm.verify_inputs:main"
 fishmip-inspect-source = "fishmip_cesm.inspect_source:main"
+fishmip-make-weights = "fishmip_cesm.make_weights:main"
+fishmip-check-regrid = "fishmip_cesm.check_regrid:main"
 
 [tool.setuptools]
 packages = ["fishmip_cesm"]

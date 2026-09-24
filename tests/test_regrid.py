@@ -2,7 +2,13 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fishmip_cesm.regrid import apply_weights, conservation_error, fishmip_grid
+from fishmip_cesm.regrid import (
+    apply_weights,
+    conservation_error,
+    fishmip_grid,
+    fishmip_scrip_grid,
+    steradians_to_square_metres,
+)
 
 
 def test_fishmip_grid_is_one_degree_with_cell_centres_on_half_degrees():
@@ -85,3 +91,43 @@ def test_apply_weights_leaves_target_cells_with_no_source_contribution_empty():
 
     np.testing.assert_allclose(result.values[0], 4.0)
     assert np.isnan(result.values[1])
+
+
+def test_fishmip_scrip_grid_describes_every_cell_for_esmf():
+    scrip = fishmip_scrip_grid()
+
+    # SCRIP lists cells in a flat array, x varying fastest.
+    assert scrip.sizes["grid_size"] == 360 * 180
+    assert scrip.sizes["grid_corners"] == 4
+    np.testing.assert_array_equal(scrip["grid_dims"].values, [360, 180])
+    assert scrip["grid_center_lon"].values[0] == -179.5
+    assert scrip["grid_center_lat"].values[0] == -89.5
+
+
+def test_fishmip_scrip_corners_bound_their_own_cell():
+    scrip = fishmip_scrip_grid()
+
+    # First cell spans -180..-179 in longitude and -90..-89 in latitude.
+    np.testing.assert_allclose(
+        sorted(set(scrip["grid_corner_lon"].values[0])), [-180.0, -179.0]
+    )
+    np.testing.assert_allclose(
+        sorted(set(scrip["grid_corner_lat"].values[0])), [-90.0, -89.0]
+    )
+
+
+def test_fishmip_scrip_grid_is_entirely_unmasked():
+    # The target grid is global; masking is the source grid's job.
+    scrip = fishmip_scrip_grid()
+
+    assert set(np.unique(scrip["grid_imask"].values)) == {1}
+
+
+def test_converts_cell_area_from_steradians_to_square_metres():
+    # ESMF writes cell areas in steradians. The whole sphere is 4*pi sr and
+    # about 5.1e14 m2, which is the only anchor needed to pin the radius.
+    whole_sphere = xr.DataArray([4 * np.pi], dims="cell")
+
+    area = steradians_to_square_metres(whole_sphere)
+
+    assert float(area.values[0]) == pytest.approx(5.10e14, rel=1e-2)

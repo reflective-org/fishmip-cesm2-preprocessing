@@ -68,3 +68,66 @@ def apply_weights(
     touched[rows] = True
     out[touched] = contributions[touched]
     return xr.DataArray(out, dims="cell")
+
+
+def fishmip_scrip_grid() -> xr.Dataset:
+    """The FishMIP target grid as a SCRIP descriptor, for ESMF_RegridWeightGen.
+
+    The gx1v7 source grid already ships as SCRIP in CESM's inputdata; the target
+    has to be written out to pair with it. SCRIP flattens the grid with x
+    varying fastest, and lists each cell's four corners counterclockwise from
+    the south-west.
+    """
+    grid = fishmip_grid()
+    lat_b = grid["lat_b"].values
+    lon_b = grid["lon_b"].values
+    ny, nx = len(lat_b) - 1, len(lon_b) - 1
+
+    centre_lon, centre_lat = np.meshgrid(grid["lon"].values, grid["lat"].values)
+    west, east = lon_b[:-1], lon_b[1:]
+    south, north = lat_b[:-1], lat_b[1:]
+
+    corner_lon = np.stack(
+        [
+            np.tile(west, ny),
+            np.tile(east, ny),
+            np.tile(east, ny),
+            np.tile(west, ny),
+        ],
+        axis=1,
+    )
+    corner_lat = np.stack(
+        [
+            np.repeat(south, nx),
+            np.repeat(south, nx),
+            np.repeat(north, nx),
+            np.repeat(north, nx),
+        ],
+        axis=1,
+    )
+
+    degrees = {"units": "degrees"}
+    return xr.Dataset(
+        {
+            "grid_dims": ("grid_rank", np.array([nx, ny], dtype="int32")),
+            "grid_center_lat": ("grid_size", centre_lat.ravel(), degrees),
+            "grid_center_lon": ("grid_size", centre_lon.ravel(), degrees),
+            "grid_corner_lat": (("grid_size", "grid_corners"), corner_lat, degrees),
+            "grid_corner_lon": (("grid_size", "grid_corners"), corner_lon, degrees),
+            "grid_imask": (
+                "grid_size",
+                np.ones(nx * ny, dtype="int32"),
+                {"units": "unitless"},
+            ),
+        },
+        attrs={"title": "FishMIP 1 degree global grid", "Conventions": "SCRIP"},
+    )
+
+
+# ESMF's default sphere, matching CESM's.
+EARTH_RADIUS_M = 6.37122e6
+
+
+def steradians_to_square_metres(area: xr.DataArray) -> xr.DataArray:
+    """Convert ESMF cell areas, which are written in steradians, to m^2."""
+    return area * EARTH_RADIUS_M**2

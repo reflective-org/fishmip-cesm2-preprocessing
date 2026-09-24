@@ -84,6 +84,26 @@ whose magnitude is known independently:
 
 Nothing is written; it is read-only.
 
+## Stage 6: regrid
+
+Conservative gx1v7 -> 1 degree, **not** bilinear: `intpp` and `expc-bot` are
+fluxes whose global integral must survive the regrid.
+
+Weights are generated once, offline, by ESMF_RegridWeightGen; applying them is a
+cheap sparse matmul that runs per variable and member. On Casper:
+
+```
+module load conda && conda activate npl
+fishmip-make-weights                     # writes the target SCRIP grid
+                                         # then prints the ESMF command to run
+fishmip-check-regrid --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
+```
+
+The check regrids one real year of `intpp` and compares the global integral
+before and after. It must come back at ~49.3 PgC/yr with a conservation error at
+the level of floating-point noise. Conserving relative to a source we had
+already got wrong would still be wrong, so the absolute value is checked too.
+
 ## Tests
 
 ```
