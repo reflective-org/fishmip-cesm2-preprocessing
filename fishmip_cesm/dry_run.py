@@ -119,6 +119,13 @@ def main() -> int:
         ok = gate_passed(checks)
         print(f"{name} ({variable_kind(name)}) {'ok' if ok else 'FAILED'}")
         print(format_report(checks))
+        # Concentration regridding is a weighted mean with non-negative
+        # weights, so the result is bounded by the source. Printing the native
+        # range shows whether an out-of-range value was inherited or created.
+        print(
+            f"  [--] native range: min {float(native.min()):.4g}, "
+            f"max {float(native.max()):.4g}"
+        )
 
         if variable_kind(name) == "flux":
             error = conservation_error(

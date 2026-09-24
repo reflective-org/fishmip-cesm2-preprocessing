@@ -138,11 +138,12 @@ changing them:
 
 ### The 3D tracers are upper-ocean only
 
-`NO3`, `spC`, `diatC` and `zooC` are written on **`z_t_150m`**, not `z_t` — MARBL outputs
-its ecosystem tracers over the top 150 m (15 levels) rather than the full 60-level column.
-`TEMP` is full depth; the `_zint` and 2D fields are unaffected.
+`spC`, `diatC` and `zooC` are written on **`z_t_150m`** — MARBL outputs the plankton
+tracers over the top 150 m (15 levels) rather than the full 60-level column. `NO3` and
+`TEMP` are full depth on `z_t`; the `_zint` and 2D fields are unaffected.
 
-So `no3`, `phyc`, `phydiat` and `zooc` can only be supplied for 0–150 m. Worth confirming
+So `phyc`, `phydiat` and `zooc` can only be supplied for 0–150 m, while `no3` and `thetao`
+are available throughout. Worth confirming
 with Colleen Petrik and Jerome Guiet that this is sufficient for FEISTY and BOATS — it
 plausibly is, since these are upper-ocean quantities for fish forcing, but it is a limit
 on the data rather than a choice we made, and they should know it exists.

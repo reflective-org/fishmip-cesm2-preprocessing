@@ -18,18 +18,19 @@ class Check:
     detail: str
 
 
-# Generous bounds. These are not tuned to CESM2 -- they exist to catch unit
-# slips, sign errors and regridding damage, not to police plausible variation.
+# Bounds exist to catch unit slips, sign errors and regridding damage, not to
+# police plausible variation. Upper bounds carry the maximum measured in the
+# 2026-09-24 dry run (WACCM baseline, 2040, surface) so the headroom is visible.
 PLAUSIBLE_RANGES = {
-    "thetao": (-2.5, 40.0),  # degC; a Kelvin slip lands at ~290
-    "tob": (-2.5, 40.0),
-    "intpp": (0.0, 1e-4),  # mol m-2 s-1; observed max ~1.4e-5
-    "expc-bot": (0.0, 1e-4),
-    "zoo_loss": (0.0, 1e-4),
-    "no3": (0.0, 0.1),  # mol m-3; deep ocean ~0.035
-    "phyc": (0.0, 0.05),
-    "phydiat": (0.0, 0.05),
-    "zooc": (0.0, 0.05),
+    "thetao": (-2.5, 40.0),  # degC; measured 32.0. A Kelvin slip lands at ~290.
+    "tob": (-2.5, 40.0),  # measured 32.5
+    "intpp": (0.0, 1e-4),  # mol m-2 s-1; measured 6.0e-6
+    "expc-bot": (0.0, 1e-4),  # measured 1.9e-6
+    "zoo_loss": (0.0, 1e-4),  # measured 4.8e-7
+    "no3": (0.0, 0.1),  # mol m-3; measured 0.023
+    "phyc": (0.0, 0.2),  # measured 0.0063
+    "phydiat": (0.0, 0.2),  # measured 0.057 -- a bloom, and over my first guess
+    "zooc": (0.0, 0.2),  # measured 0.0026
     "deptho": (0.0, 11000.0),  # m
     "thkcello": (0.0, 1000.0),  # m
 }
