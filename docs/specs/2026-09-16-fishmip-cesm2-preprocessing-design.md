@@ -219,10 +219,34 @@ Flux variables conserved to ~1e-16, `intpp` integrated to 49.3083 PgC/yr after r
 (unchanged from the native grid), 44504 of 64800 target cells resolved as ocean, and no
 ocean cell was left without a value in any variable.
 
-**What this does and does not cover.** One member, one ensemble, one year, annual means,
-and the top level only for the 3D variables. Still unexercised: the other three ensembles,
-the full 2035–2069 window, monthly rather than annual output, and depth levels below the
-surface. The gate should be run across all four ensembles before any output is written.
+Repeated across **all four ensembles**, member 001, year 2040 — every variable passed:
+
+| Ensemble | Global NPP after regrid | Conservation |
+|---|---|---|
+| SSP2-4.5 (WACCM baseline) | 49.3083 PgC/yr | −1.1e-16 |
+| G6-1.5K-SAI | 49.2070 | −1.1e-16 |
+| SSP2-4.5 (CAM6 baseline) | 49.7233 | 0.0 |
+| G6-1.5K-MCB | 49.3709 | 0.0 |
+
+Both SRM scenarios sit slightly below their matched baselines (−0.10 and −0.35 PgC/yr).
+One year and one member, so this is not a result — but it is the comparison the project
+exists to make, and the pipeline now produces it.
+
+**Negatives confirmed inherited, not introduced.** Across every variable and ensemble the
+regridded range sits inside the native range, which is the bound a weighted mean
+guarantees. Clipping touched 1–15 cells per field, removing 0.000–0.004% of each.
+
+**Peak values are damped by the regrid, as expected.** `intpp` peaks fall from 1.03e-5 to
+6.28e-6 (SAI), `phydiat` from 0.082 to 0.062. gx1v7 is finer than 1° near the equator, so
+area-averaging onto a regular 1° grid smooths extremes. This is correct behaviour for
+conservative regridding — the integral is preserved while maxima are not — but modellers
+using these fields should know the extremes are grid-scale averages rather than the
+model's own peaks.
+
+**What this does and does not cover.** One member per ensemble, one year, annual means,
+and the top level only for the 3D variables. Still unexercised: the remaining members, the
+full 2035–2069 window, monthly rather than annual output, and depth levels below the
+surface.
 
 ### Negative concentrations are clipped, and the amount is reported
 
