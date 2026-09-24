@@ -161,10 +161,26 @@ queue) with direct GLADE reads — no data transfer.
    per column; `thkcello` from `dz`; `deptho` from `HT`.
 4. **Convert units.** Apply the factors above; write `units` attributes to match FishMIP.
 5. **Rename.** CESM → FishMIP variable names and dimension names.
-6. **Regrid.** gx1v7 → FishMIP 1° regular grid (360 × 180). **Conservative** regridding
-   via `xesmf`, not bilinear — `intpp` and `expc-bot` are fluxes and must conserve
-   globally. Source cell corners derived from `ULAT`/`ULONG`. Regridding weights computed
-   once and reused across all variables and members.
+6. **Regrid.** gx1v7 → FishMIP 1° regular grid (360 × 180). **Conservative**, not
+   bilinear — `intpp` and `expc-bot` are fluxes and must conserve globally.
+
+   Weights are generated once by `ESMF_RegridWeightGen` from two SCRIP grid
+   descriptions: gx1v7 ships as SCRIP in CESM inputdata
+   (`share/scripgrids/gx1v7_151008.nc`), and the FishMIP target is written by
+   `make_weights`. Applying the weights is a sparse matmul, so the expensive step
+   happens once and the per-variable step stays cheap.
+
+   `--ignore_unmapped` is required. gx1v7 is an ocean grid whose southern boundary
+   follows the Antarctic coast near 79°S, with land masked, so a global target grid
+   necessarily contains cells with no source. Those cells receive no weights and are
+   written as NaN rather than zero — over Antarctica, "no ocean here" and "ocean
+   producing nothing" are different claims.
+
+   **Verified 2026-09-24** against `intpp`, WACCM baseline, year 2040:
+   122880 source cells → 64800 target cells, global NPP 49.3083 PgC/yr before and
+   49.3083 after, conservation error −1.1e-16. The integral before the regrid is
+   computed from ESMF's `area_a` and agrees with the independent `TAREA`-based figure
+   from stage 2, so the two area fields corroborate each other.
 7. **Write.** NetCDF4 with FishMIP file naming and required global attributes.
 8. **Validate.** See below.
 
