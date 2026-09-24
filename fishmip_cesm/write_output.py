@@ -2,9 +2,13 @@
 
     python -m fishmip_cesm.write_output --weights WEIGHTS [--write] [--out-dir DIR]
 
-Without --write this prints what it would produce and how large it would be,
-and touches nothing. The full set at full depth runs to hundreds of gigabytes,
-so knowing the shape of the job before starting it is worth a few seconds.
+Without --write this reads directory listings only -- nothing is opened,
+decoded or held -- and prints what it would produce and how large it would be.
+The full set at full depth runs to hundreds of gigabytes, so knowing the shape
+of the job before starting it is worth a few seconds.
+
+With --write, fields stream through the regrid a year at a time. A full-depth
+variable over the analysis window is around 25 GB, so it is never held whole.
 
 Every file goes through the stage 8 gate before it is written. A variable that
 fails is skipped and reported; it is not written and then corrected, because the
@@ -22,7 +26,7 @@ from fishmip_cesm.ensembles import ANALYSIS_WINDOW, ENSEMBLES
 from fishmip_cesm.naming import BUCKET
 from fishmip_cesm.output import to_fishmip_dataset, unflatten
 from fishmip_cesm.plan import plan_output
-from fishmip_cesm.regrid import regrid_variable, variable_kind
+from fishmip_cesm.regrid import regrid_variable
 from fishmip_cesm.transform import (
     CONVERSIONS,
     convert_variable,
@@ -86,18 +90,26 @@ def _member_label(month_1: Path) -> str:
     return month_1.parents[3].name.rsplit(".", 1)[-1]
 
 
-def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
-    """Concatenate whichever timeseries chunks cover the analysis window."""
+def _window_paths(month_1: Path, variable: str, window) -> list[Path]:
+    """The timeseries chunks covering the window, without opening any of them."""
     (start_year, _), (end_year, _) = window
     paths = []
     for path in sorted(month_1.glob(f"*.pop.h.{variable}.*.nc")):
         parsed = parse_timeseries_filename(path.name)
         if parsed and parsed.start[0] <= end_year and parsed.end[0] >= start_year:
             paths.append(path)
+    return paths
+
+
+def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
+    """Concatenate whichever timeseries chunks cover the analysis window."""
+    paths = _window_paths(month_1, variable, window)
     if not paths:
         return None
+    # Chunk along time only: the regrid needs the horizontal axes whole, and a
+    # year of a 60-level field is about 700 MB.
     data = xr.open_mfdataset(
-        paths, combine="by_coords", decode_timedelta=True, chunks={}
+        paths, combine="by_coords", decode_timedelta=True, chunks={"time": 12}
     )[variable]
     return subset_to_window(data, window)
 
@@ -122,6 +134,21 @@ def write_variable(
     write: bool,
 ) -> bool:
     """Regrid, gate and optionally write one variable for one member."""
+    plan = plan_output(
+        model=ensemble.model,
+        scenario=ensemble.name,
+        member=member,
+        variable=fishmip_name,
+        window=ANALYSIS_WINDOW,
+        levels=EXPECTED_LEVELS.get(fishmip_name, 1),
+    )
+    if not write:
+        # Nothing is computed on a dry run. Regridding first and then deciding
+        # not to write would load ~25 GB for a full-depth variable.
+        print(f"  would write {plan.filename}  (~{plan.gigabytes:.2f} GB)")
+        print(f"            -> s3://{BUCKET}/{plan.key}")
+        return True
+
     flat = _to_cells(native)
     regridded = regrid_variable(fishmip_name, flat, weights, n_target)
     regridded.attrs = dict(native.attrs)
@@ -148,21 +175,8 @@ def write_variable(
         print(format_report(checks))
         return False
 
-    plan = plan_output(
-        model=ensemble.model,
-        scenario=ensemble.name,
-        member=member,
-        variable=fishmip_name,
-        window=ANALYSIS_WINDOW,
-        levels=EXPECTED_LEVELS.get(fishmip_name, 1),
-    )
     if notes:
         print(f"  {fishmip_name}: {notes}")
-
-    if not write:
-        print(f"  would write {plan.filename}  (~{plan.gigabytes:.2f} GB)")
-        print(f"            -> s3://{BUCKET}/{plan.key}")
-        return True
 
     field = unflatten(regridded)
     field.attrs = dict(native.attrs)
@@ -231,12 +245,14 @@ def main() -> int:
                 sorted(month_1.glob("*.pop.h.TEMP.*.nc"))[0], decode_timedelta=True
             )
             kmt = grid["KMT"]
-            ocean = regrid_variable(
-                "thetao",
-                _to_cells(xr.ones_like(kmt).where(kmt > 0)),
-                weights,
-                n_target,
-            ).notnull()
+            ocean = None
+            if args.write:
+                ocean = regrid_variable(
+                    "thetao",
+                    _to_cells(xr.ones_like(kmt).where(kmt > 0)),
+                    weights,
+                    n_target,
+                ).notnull().compute()
 
             work: list[tuple[str, str, xr.DataArray]] = []
             for cesm_name in DIRECT_SOURCES:
@@ -250,18 +266,22 @@ def main() -> int:
                     failures += 1
                     continue
                 work.append((_fishmip_name(cesm_name), cesm_name, convert_variable(cesm_name, raw)))
-            work.append(("tob", "TEMP", derive_tob(temperature, kmt)))
+            if args.write:
+                work.append(("tob", "TEMP", derive_tob(temperature, kmt)))
+            else:
+                work.append(("tob", "TEMP", temperature))
 
             for fishmip_name, cesm_source, field in work:
                 if args.variable and fishmip_name != args.variable:
                     continue
                 levels = EXPECTED_LEVELS.get(fishmip_name, 1)
-                depth = depth_dim(field)
-                if depth is not None and field.sizes[depth] != levels:
-                    print(
-                        f"  {fishmip_name}: expected {levels} levels, "
-                        f"found {field.sizes[depth]} on {depth}"
-                    )
+                if field is not None:
+                    depth = depth_dim(field)
+                    if depth is not None and field.sizes[depth] != levels:
+                        print(
+                            f"  {fishmip_name}: expected {levels} levels, "
+                            f"found {field.sizes[depth]} on {depth}"
+                        )
                 ok = write_variable(
                     fishmip_name,
                     field,

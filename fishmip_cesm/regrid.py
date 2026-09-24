@@ -51,16 +51,18 @@ def apply_weights(
 
     Weight generation is done once, offline, with ESMF_RegridWeightGen; this is
     the cheap step that runs per variable and member. Leading dimensions (time,
-    depth) are carried through, so a whole timeseries regrids in one matmul
-    rather than one field at a time.
+    depth) are carried through.
+
+    A dask-backed field stays lazy. A full-depth variable over the analysis
+    window is around 25 GB, so it has to stream through in chunks rather than
+    land in memory; the sparse matmul is applied per chunk.
 
     Target cells that receive no weights come back as NaN rather than zero. For
     a flux that distinction matters: zero is a physical claim that nothing is
     there, whereas these cells are simply outside the source grid's coverage.
     """
-    values = np.asarray(field.values, dtype=float)
-    n_source = values.shape[-1]
-    batch = values.reshape(-1, n_source)
+    source_dim = field.dims[-1]
+    n_source = field.sizes[source_dim]
 
     # ESMF writes 1-based indices.
     rows = weights["row"].values - 1
@@ -68,16 +70,27 @@ def apply_weights(
     matrix = sparse.csr_matrix(
         (weights["S"].values, (rows, cols)), shape=(n_target, n_source)
     )
-
-    out = (matrix @ batch.T).T
-
     untouched = np.ones(n_target, dtype=bool)
     untouched[rows] = False
-    out[:, untouched] = np.nan
 
-    out = out.reshape(*values.shape[:-1], n_target)
-    dims = field.dims[:-1] + ("cell",)
-    return xr.DataArray(out, dims=dims)
+    def _regrid_block(block: np.ndarray) -> np.ndarray:
+        batch = np.asarray(block, dtype=float).reshape(-1, n_source)
+        out = (matrix @ batch.T).T
+        out[:, untouched] = np.nan
+        return out.reshape(*block.shape[:-1], n_target)
+
+    # apply_ufunc cannot have the same name as both an input and an output core
+    # dimension, so rename the source axis out of the way first.
+    renamed = field.rename({source_dim: "_source_cell"})
+    return xr.apply_ufunc(
+        _regrid_block,
+        renamed,
+        input_core_dims=[["_source_cell"]],
+        output_core_dims=[["cell"]],
+        dask="parallelized",
+        output_dtypes=[float],
+        dask_gufunc_kwargs={"output_sizes": {"cell": n_target}},
+    )
 
 
 def fishmip_scrip_grid() -> xr.Dataset:

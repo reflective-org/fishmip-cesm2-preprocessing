@@ -130,6 +130,24 @@ variable, writing nothing. Per variable it checks:
 The gate fails closed: a variable with no declared range or no classification
 stops it rather than passing through.
 
+## Stage 7: write the forcing files
+
+```
+python -m fishmip_cesm.write_output --weights grids/gx1v7_to_fishmip_1deg_conserve.nc
+```
+
+Dry run by default: reads directory listings only and prints the filenames,
+object keys and sizes it would produce. To write one variable for one member:
+
+```
+python -m fishmip_cesm.write_output --weights grids/... \
+    --ensemble MCB --member 001 --variable intpp --write --out-dir output
+```
+
+Memory: fields stream through the regrid a year at a time rather than being
+held whole. A full-depth variable over 2035-2069 is around 25 GB, so nothing
+loads it in one piece.
+
 ## Tests
 
 ```
