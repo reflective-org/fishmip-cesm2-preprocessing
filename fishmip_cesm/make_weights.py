@@ -34,6 +34,13 @@ def weight_generation_command(
     `conserve` is the load-bearing choice. `intpp` and `expc-bot` are fluxes,
     and bilinear interpolation would not preserve their global integral -- it
     would quietly change how much carbon reaches the fish models.
+
+    `--ignore_unmapped` is required, not a workaround. gx1v7 is an *ocean* grid
+    whose southern boundary follows the Antarctic coast near 79S, and its land
+    cells are masked, so a global target grid necessarily contains cells with no
+    source to draw from. Without this ESMF aborts on the first one. Those cells
+    receive no weights and come back as NaN, which `apply_weights` preserves --
+    the right answer for a point with no ocean in it.
     """
     return [
         TOOL,
@@ -41,6 +48,7 @@ def weight_generation_command(
         "--destination", str(destination),
         "--weight", str(weight),
         "--method", "conserve",
+        "--ignore_unmapped",
         "--src_regional=false",
         "--dst_regional=false",
         "--netcdf4",
@@ -101,6 +109,11 @@ def main() -> int:
         print(
             f"\n{TOOL} exited {result.returncode}."
             "\nCheck PET0.RegridWeightGen.Log in the working directory."
+            "\n"
+            "\nIf it reports degenerate cells, add --ignore_degenerate to"
+            "\nweight_generation_command. gx1v7 is a tripole grid and can have"
+            "\ncollapsed cells at the northern fold. Read the log first though:"
+            "\nthat flag suppresses a real category of grid problem."
         )
         return result.returncode
 

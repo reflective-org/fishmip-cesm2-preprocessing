@@ -22,3 +22,13 @@ def test_weight_generation_command_passes_all_three_paths():
     assert command[command.index("--source") + 1] == "gx1v7.nc"
     assert command[command.index("--destination") + 1] == "fishmip.nc"
     assert command[command.index("--weight") + 1] == "w.nc"
+
+
+def test_weight_generation_tolerates_destination_cells_with_no_ocean():
+    # gx1v7 is an ocean grid ending near 79S, so the target grid's polar and
+    # land cells have no source to draw from. Without this ESMF aborts.
+    command = weight_generation_command(
+        source=Path("gx1v7.nc"), destination=Path("fishmip.nc"), weight=Path("w.nc")
+    )
+
+    assert "--ignore_unmapped" in command
