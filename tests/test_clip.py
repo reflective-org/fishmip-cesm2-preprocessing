@@ -56,3 +56,28 @@ def test_clipping_is_refused_for_a_variable_that_may_legitimately_be_negative():
 
     with pytest.raises(ValueError, match="thetao"):
         clip_negatives("thetao", thetao)
+
+
+def test_deferred_clipping_returns_statistics_unevaluated():
+    # Evaluating them separately costs a whole extra read of the source; the
+    # writer folds them into the same pass as to_netcdf.
+    pytest.importorskip("dask")
+    no3 = xr.DataArray([-0.001, 0.02, 0.3], dims="cell").chunk({"cell": 1})
+
+    clipped, stats = clip_negatives("no3", no3, defer=True)
+
+    assert clipped.chunks is not None
+    assert all(getattr(s, "chunks", None) is not None for s in stats)
+
+
+def test_a_deferred_report_matches_an_immediate_one():
+    import dask
+
+    from fishmip_cesm.validate import clip_report
+
+    no3 = xr.DataArray([-0.001, -0.002, 0.3], dims="cell").chunk({"cell": 1})
+
+    _, immediate = clip_negatives("no3", no3)
+    _, deferred = clip_negatives("no3", no3, defer=True)
+
+    assert clip_report("no3", dask.compute(*deferred)) == immediate

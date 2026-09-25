@@ -133,7 +133,9 @@ def may_be_negative(fishmip_name: str) -> bool:
 def clip_negatives(
     fishmip_name: str,
     field: xr.DataArray,
-) -> tuple[xr.DataArray, ClipReport]:
+    *,
+    defer: bool = False,
+):
     """Clip physically impossible negatives to zero, reporting what was removed.
 
     MARBL's advection scheme produces small negative tracer values. They are
@@ -143,6 +145,11 @@ def clip_negatives(
 
     Refused for variables that may legitimately be negative: sea water reaches
     -1.9 degC, and clipping temperature would be both wrong and hard to notice.
+
+    With `defer`, the statistics come back unevaluated so the caller can compute
+    them in the same pass as the write. Evaluating them here instead costs an
+    entire extra read of the source -- around fourteen minutes for a full-depth
+    variable on campaign storage.
     """
     low, _ = PLAUSIBLE_RANGES[fishmip_name]
     if low < 0:
@@ -151,29 +158,31 @@ def clip_negatives(
         )
 
     negative = field < 0
-    # One pass, not three. Each of these reductions would otherwise re-run the
-    # whole regrid chain from the source files, and on a full-depth field that
-    # is several gigabytes of recomputation apiece.
-    cells_lazy = negative.sum()
-    removed_lazy = field.where(negative).sum()
-    kept_lazy = field.where(~negative).sum()
+    stats = (
+        negative.sum(),
+        field.where(negative).sum(),
+        field.where(~negative).sum(),
+        field.min(),
+    )
+    clipped = field.where(~negative, 0.0)
+
+    if defer:
+        return clipped, stats
     if field.chunks is not None:
         import dask
 
-        cells_lazy, removed_lazy, kept_lazy = dask.compute(
-            cells_lazy, removed_lazy, kept_lazy
-        )
-    cells = int(cells_lazy)
-    removed = float(removed_lazy)
-    kept = float(kept_lazy)
-    return (
-        field.where(~negative, 0.0),
-        ClipReport(
-            variable=fishmip_name,
-            cells=cells,
-            most_negative=float(field.min()) if cells else 0.0,  # noqa
-            removed_fraction=abs(removed) / kept if kept else 0.0,
-        ),
+        stats = dask.compute(*stats)
+    return clipped, clip_report(fishmip_name, stats)
+
+
+def clip_report(fishmip_name: str, stats) -> ClipReport:
+    """Assemble a report from evaluated clip statistics."""
+    cells, removed, kept, smallest = (float(s) for s in stats)
+    return ClipReport(
+        variable=fishmip_name,
+        cells=int(cells),
+        most_negative=smallest if cells else 0.0,
+        removed_fraction=abs(removed) / kept if kept else 0.0,
     )
 
 

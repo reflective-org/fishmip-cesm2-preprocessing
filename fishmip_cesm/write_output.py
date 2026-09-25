@@ -39,6 +39,7 @@ from fishmip_cesm.transform import (
 from fishmip_cesm.validate import (
     check_time_coverage,
     clip_negatives,
+    clip_report,
     format_report,
     gate_passed,
     may_be_negative,
@@ -191,16 +192,14 @@ def write_variable(
     regridded = regrid_variable(fishmip_name, flat, weights, n_target)
     regridded.attrs = dict(native.attrs)
 
-    notes = ""
+    # Clip lazily and keep the statistics unevaluated: they are computed in the
+    # same pass as the write below. Evaluating them here would read the whole
+    # source a second time, which on campaign storage is the dominant cost.
+    clip_stats = None
     if not may_be_negative(fishmip_name):
         attrs = dict(regridded.attrs)
-        regridded, clip = clip_negatives(fishmip_name, regridded)
+        regridded, clip_stats = clip_negatives(fishmip_name, regridded, defer=True)
         regridded.attrs = attrs
-        if clip.cells:
-            notes = (
-                f"{clip.cells} negative cell(s) clipped to zero "
-                f"({clip.removed_fraction:.4%} of the field)"
-            )
 
     # The gate sees a representative slice; checking every timestep would read
     # the whole field twice for no additional signal on range or units.
@@ -214,9 +213,6 @@ def write_variable(
         print(format_report(checks))
         return False
 
-    if notes:
-        print(f"  {fishmip_name}: {notes}")
-
     field = unflatten(regridded)
     field.attrs = dict(native.attrs)
     dataset = to_fishmip_dataset(
@@ -228,12 +224,31 @@ def write_variable(
         scenario=ensemble.experiment_id,
         member=member,
         cesm_source=cesm_source,
-        notes=notes,
+        notes=(
+            "negative values clipped to zero; see the clip report in the run log"
+            if clip_stats is not None
+            else ""
+        ),
         description=f"{ensemble.model} {ensemble.name}",
     )
     dataset = dataset.assign_coords(time=native["time"])
     target.parent.mkdir(parents=True, exist_ok=True)
-    dataset.to_netcdf(target, encoding={fishmip_name: COMPRESSION})
+
+    # One pass: the file and the clip statistics share a single traversal of the
+    # source rather than each triggering their own.
+    import dask
+
+    delayed = dataset.to_netcdf(
+        target, encoding={fishmip_name: COMPRESSION}, compute=False
+    )
+    if clip_stats is None:
+        dask.compute(delayed)
+    else:
+        _, *evaluated = dask.compute(delayed, *clip_stats)
+        report = clip_report(fishmip_name, evaluated)
+        if report.cells:
+            print(f"  {report.describe()}")
+
     print(f"  wrote {target} ({target.stat().st_size / 1e9:.2f} GB)")
     return True
 
