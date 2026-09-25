@@ -248,6 +248,21 @@ and the top level only for the 3D variables. Still unexercised: the remaining me
 full 2035–2069 window, monthly rather than annual output, and depth levels below the
 surface.
 
+### POP stamps monthly means at the end of their interval
+
+CESM labels a monthly mean with the **end** of its averaging window, so January 2035's
+mean arrives dated 2035-02-01. Reading the raw stamps and slicing to 2035-01–2069-12
+therefore produced 419 months starting 2035-02: every field shifted one month later than
+its label, and December 2069 dropped entirely because its stamp fell just outside.
+
+Caught on 2026-09-24 by inspecting the first written file, not by any check — the data was
+valid, correctly regridded, physically plausible and conserved. Only the count was wrong.
+
+Time is now re-centred on the `time_bound` variable before the window is applied, and
+`check_time_coverage` asserts the axis is exactly the months the window asks for. A
+dataset without bounds is refused rather than guessed at, since the offset is only
+knowable from them.
+
 ### Negative concentrations are clipped, and the amount is reported
 
 MARBL's advection scheme produces small negative tracer values. They are numerical rather

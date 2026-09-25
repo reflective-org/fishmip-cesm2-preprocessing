@@ -128,3 +128,33 @@ def fishmip_units(fishmip_name: str) -> str:
         if name == fishmip_name:
             return units
     return DERIVED_UNITS[fishmip_name]
+
+
+_BOUNDS_NAMES = ("time_bound", "time_bnds", "time_bounds")
+
+
+def centre_time(dataset: xr.Dataset) -> xr.Dataset:
+    """Re-stamp monthly means at the middle of their averaging interval.
+
+    POP labels a monthly mean with the *end* of its interval, so January's mean
+    arrives dated 1 February. Left alone this shifts every field one month --
+    January's data read as February -- and drops the final month of any window,
+    because its stamp falls just outside. Neither shows up as an error; a
+    seasonal cycle simply comes out a month late.
+
+    The offset is only knowable from the bounds, so a dataset without them is
+    refused rather than guessed at.
+    """
+    declared = dataset["time"].attrs.get("bounds")
+    candidates = (declared, *_BOUNDS_NAMES) if declared else _BOUNDS_NAMES
+    name = next((n for n in candidates if n and n in dataset.variables), None)
+    if name is None:
+        raise ValueError(
+            "cannot centre time: no bounds variable "
+            f"(looked for {', '.join(_BOUNDS_NAMES)})"
+        )
+
+    bounds = dataset[name]
+    edge_dim = [d for d in bounds.dims if d != "time"][0]
+    centred = bounds.astype("datetime64[ns]").mean(dim=edge_dim)
+    return dataset.assign_coords(time=centred)

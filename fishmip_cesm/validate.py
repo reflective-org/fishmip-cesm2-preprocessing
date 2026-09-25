@@ -163,3 +163,32 @@ def clip_negatives(
             removed_fraction=abs(removed) / kept if kept else 0.0,
         ),
     )
+
+
+def check_time_coverage(field: xr.DataArray, window) -> Check:
+    """Confirm the time axis is exactly the months the window asks for.
+
+    This exists because POP stamps monthly means at the end of their interval.
+    Slicing the raw stamps shifted every month by one and silently dropped the
+    last month of the window -- an error that changes a seasonal cycle and that
+    every other check passed.
+    """
+    (start_year, start_month), (end_year, end_month) = window
+    expected = (end_year - start_year) * 12 + (end_month - start_month) + 1
+
+    times = field["time"].values
+    found = len(times)
+    first = str(times[0])[:7]
+    last = str(times[-1])[:7]
+    wanted_first = f"{start_year}-{start_month:02d}"
+    wanted_last = f"{end_year}-{end_month:02d}"
+
+    passed = found == expected and first == wanted_first and last == wanted_last
+    return Check(
+        name="time coverage",
+        passed=passed,
+        detail=(
+            f"{found} months {first} to {last}; "
+            f"expected {expected} months {wanted_first} to {wanted_last}"
+        ),
+    )

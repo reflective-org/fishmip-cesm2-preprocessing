@@ -29,12 +29,14 @@ from fishmip_cesm.plan import plan_output
 from fishmip_cesm.regrid import regrid_variable
 from fishmip_cesm.transform import (
     CONVERSIONS,
+    centre_time,
     convert_variable,
     depth_dim,
     derive_tob,
     subset_to_window,
 )
 from fishmip_cesm.validate import (
+    check_time_coverage,
     clip_negatives,
     format_report,
     gate_passed,
@@ -111,10 +113,13 @@ def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
         return None
     # Chunk along time only: the regrid needs the horizontal axes whole, and a
     # year of a 60-level field is about 700 MB.
-    data = xr.open_mfdataset(
+    dataset = xr.open_mfdataset(
         paths, combine="by_coords", decode_timedelta=True, chunks={"time": 12}
-    )[variable]
-    return subset_to_window(data, window)
+    )
+    # Centre before subsetting. POP stamps a monthly mean at the end of its
+    # interval, so slicing the raw stamps shifts every month by one and drops
+    # the last month of the window.
+    return subset_to_window(centre_time(dataset)[variable], window)
 
 
 def _to_cells(field: xr.DataArray) -> xr.DataArray:
@@ -173,6 +178,7 @@ def write_variable(
         {d: 0 for d in regridded.dims if d != "cell"}, missing_dims="ignore"
     )
     checks = validate_variable(fishmip_name, sample, ocean)
+    checks.append(check_time_coverage(native, ANALYSIS_WINDOW))
     if not gate_passed(checks):
         print(f"  {fishmip_name}: FAILED the gate, not written")
         print(format_report(checks))

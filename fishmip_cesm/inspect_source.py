@@ -24,6 +24,7 @@ from fishmip_cesm.diagnostics import (
 )
 from fishmip_cesm.ensembles import ENSEMBLES
 from fishmip_cesm.transform import (
+    centre_time,
     convert_variable,
     derive_detrital_carbon_production,
     derive_tob,
@@ -47,7 +48,7 @@ def _open(month_1: Path, variable: str, year: int) -> xr.DataArray | None:
     for path in sorted(month_1.glob(f"*.pop.h.{variable}.*.nc")):
         parsed = parse_timeseries_filename(path.name)
         if parsed and parsed.start[0] <= year <= parsed.end[0]:
-            data = xr.open_dataset(path, decode_timedelta=True)[variable]
+            data = centre_time(xr.open_dataset(path, decode_timedelta=True))[variable]
             return subset_to_window(data, ((year, 1), (year, 12)))
     return None
 
