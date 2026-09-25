@@ -69,7 +69,10 @@ EXPECTED_LEVELS = {
     "zooc": 15,
 }
 
-COMPRESSION = {"zlib": True, "complevel": 4}
+# float32 is what the plan's size estimate assumes and what CMIP writes. The
+# regrid works in float64, so without this every file is twice the planned size
+# and deflate spends its effort on digits that carry no information.
+COMPRESSION = {"zlib": True, "complevel": 4, "dtype": "float32"}
 
 
 def _fishmip_name(cesm_name: str) -> str:
