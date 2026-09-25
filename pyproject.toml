@@ -19,6 +19,7 @@ fishmip-make-weights = "fishmip_cesm.make_weights:main"
 fishmip-check-regrid = "fishmip_cesm.check_regrid:main"
 fishmip-dry-run = "fishmip_cesm.dry_run:main"
 fishmip-write-output = "fishmip_cesm.write_output:main"
+fishmip-verify-output = "fishmip_cesm.verify_output:main"
 
 [tool.setuptools]
 packages = ["fishmip_cesm"]

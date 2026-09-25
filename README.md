@@ -196,6 +196,21 @@ rewritten, so kill it whenever the node is busy.
 Level 1 compression is the main lever available here. The job is CPU bound on
 zlib, so it roughly halves the write cost for files about 15% larger.
 
+## Verifying what landed
+
+```
+python -m fishmip_cesm.verify_output --out-dir output
+```
+
+The stage 8 gate validates data on its way out; this validates what is actually
+on disk. A file can be truncated by a killed job, or mangled by two processes
+writing it at once, and neither leaves a trace in the run log.
+
+Each file is reported ok, incomplete or bad. `--delete-bad` removes the failures
+so re-running the writer rewrites them.
+
+Run this before any upload.
+
 ## Tests
 
 ```
