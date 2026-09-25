@@ -219,25 +219,28 @@ Flux variables conserved to ~1e-16, `intpp` integrated to 49.3083 PgC/yr after r
 (unchanged from the native grid), 44504 of 64800 target cells resolved as ocean, and no
 ocean cell was left without a value in any variable.
 
-> **These figures were measured on a shifted time axis** and are superseded. They predate
-> the discovery that POP stamps monthly means at the end of their interval, so each "2040"
-> annual mean actually averaged 2039-12 to 2040-11. Re-measured after the fix, MCB 2040
-> global NPP is **49.221 PgC/yr**, not 49.371. The shift was identical across all four
-> ensembles, so the comparison between them is unaffected; the absolute values move by a
-> few tenths. Re-run `dry_run` to refresh the rest.
+Measured across **all four ensembles**, member 001, calendar year 2040, on the corrected
+time axis (2026-09-24). Every variable passed the gate:
 
-Repeated across **all four ensembles**, member 001, year 2040 — every variable passed:
-
-| Ensemble | Global NPP after regrid | Conservation |
+| Ensemble | Global NPP after regrid | vs. matched baseline |
 |---|---|---|
-| SSP2-4.5 (WACCM baseline) | 49.3083 PgC/yr | −1.1e-16 |
-| G6-1.5K-SAI | 49.2070 | −1.1e-16 |
-| SSP2-4.5 (CAM6 baseline) | 49.7233 | 0.0 |
-| G6-1.5K-MCB | 49.3709 | 0.0 |
+| SSP2-4.5 (WACCM baseline) | 49.5292 PgC/yr | — |
+| G6-1.5K-SAI | 49.2522 | −0.277 |
+| SSP2-4.5 (CAM6 baseline) | 49.7430 | — |
+| G6-1.5K-MCB | 49.2210 | −0.522 |
 
-Both SRM scenarios sit slightly below their matched baselines (−0.10 and −0.35 PgC/yr).
-One year and one member, so this is not a result — but it is the comparison the project
-exists to make, and the pipeline now produces it.
+Both SRM scenarios sit below their matched baselines. One year and one member, so this is
+not a result — but it is the comparison the project exists to make, and the pipeline now
+produces it on a correct time axis.
+
+Note what the matched-baseline requirement does here: comparing MCB against the *WACCM*
+baseline would give −0.308 rather than −0.522, and against no baseline at all the number
+means nothing. At this magnitude the pairing changes the answer.
+
+An earlier version of this table gave 49.31 / 49.21 / 49.72 / 49.37. Those were measured
+before the time-centring fix, so each "2040" mean actually averaged 2039-12 to 2040-11.
+The shift was identical across ensembles, so the sign and rough scale of the comparison
+survived, but the values were wrong by a few tenths.
 
 **Negatives confirmed inherited, not introduced.** Across every variable and ensemble the
 regridded range sits inside the native range, which is the bound a weighted mean
