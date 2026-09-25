@@ -198,3 +198,19 @@ def test_apply_weights_leaves_a_dask_backed_field_lazy():
 
     assert result.chunks is not None, "regrid forced computation"
     np.testing.assert_allclose(result.compute().values, [[7.0], [14.0]])
+
+
+def test_apply_weights_handles_a_field_chunked_along_the_cell_axis():
+    # Stacking nlat and nlon can leave the flat cell axis split across chunks.
+    # The regrid needs the whole horizontal field at once -- it is only about a
+    # megabyte -- so it must rechunk rather than fail.
+    pytest.importorskip("dask")
+    weights = _weights([0.25, 0.75], rows=[1, 1], cols=[1, 2])
+    field = xr.DataArray([[4.0, 8.0], [8.0, 16.0]], dims=("time", "cell")).chunk(
+        {"time": 1, "cell": 1}
+    )
+
+    result = apply_weights(field, weights, n_target=1)
+
+    assert result.chunks is not None, "regrid forced computation"
+    np.testing.assert_allclose(result.compute().values, [[7.0], [14.0]])

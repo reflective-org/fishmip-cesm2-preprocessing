@@ -82,6 +82,14 @@ def apply_weights(
     # apply_ufunc cannot have the same name as both an input and an output core
     # dimension, so rename the source axis out of the way first.
     renamed = field.rename({source_dim: "_source_cell"})
+
+    # The regrid consumes a whole horizontal field at once, so the cell axis has
+    # to be a single chunk. Stacking nlat and nlon can leave it split. One
+    # horizontal field is about a megabyte; chunking stays on the time and depth
+    # axes, which is where the size actually is.
+    if renamed.chunks is not None:
+        renamed = renamed.chunk({"_source_cell": -1})
+
     return xr.apply_ufunc(
         _regrid_block,
         renamed,
