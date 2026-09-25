@@ -18,8 +18,12 @@ def unflatten(flat: xr.DataArray) -> xr.DataArray:
     n_lat = grid.sizes["lat"]
     n_lon = grid.sizes["lon"]
     leading = flat.shape[:-1]
+    # .data, not .values: .values materialises the whole array, and for a
+    # 60-level variable over the analysis window that is a single 13 GB
+    # allocation regardless of how carefully everything upstream was chunked.
+    # dask reshapes lazily; numpy reshapes as before.
     return xr.DataArray(
-        flat.values.reshape(*leading, n_lat, n_lon),
+        flat.data.reshape(*leading, n_lat, n_lon),
         dims=flat.dims[:-1] + ("lat", "lon"),
         coords={"lat": grid["lat"].values, "lon": grid["lon"].values},
     )

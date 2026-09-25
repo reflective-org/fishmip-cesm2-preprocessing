@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import xarray as xr
 
 from fishmip_cesm.output import to_fishmip_dataset, unflatten
@@ -73,3 +74,17 @@ def test_unflatten_preserves_leading_time_and_depth_dimensions():
 
     assert field.dims == ("time", "lat", "lon")
     assert float(field.isel(time=1).sel(lat=-89.5, lon=-179.5)) == 64800.0
+
+
+def test_unflatten_leaves_a_dask_backed_field_lazy():
+    # .values here materialises the whole regridded variable: for a 60-level
+    # field over the analysis window that is a single 13 GB allocation, which
+    # no amount of chunking upstream can survive.
+    pytest.importorskip("dask")
+    flat = xr.DataArray(
+        np.zeros((4, 180 * 360)), dims=("time", "cell")
+    ).chunk({"time": 1})
+
+    field = unflatten(flat)
+
+    assert field.chunks is not None, "unflatten forced computation"
