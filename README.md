@@ -159,17 +159,22 @@ Members are independent, so the job fans out over them. On Derecho:
 qsub -A <PROJECT> scripts/write_all.pbs
 ```
 
-One node, 16 members at a time, 4 dask workers each. About 18 minutes per
-member serial, so roughly 40 minutes wall clock for all 34.
+One node, all 34 members at once, 2 dask workers each. A member takes about 45
+minutes, and they run concurrently, so the whole set is roughly that.
 
 **Re-submitting is the recovery path.** Complete files are skipped; truncated
 ones -- from a job killed mid-write -- are rewritten. Existence alone is not
 treated as done, because a short file would publish a gap that nothing
 downstream would notice.
 
-The work is I/O bound: profiling measured the regrid at zero seconds beyond the
-time spent reading. Concurrency is therefore about keeping reads in flight, not
-about cores, and `--workers` past a handful buys little.
+The work is **CPU bound**, not I/O bound -- a member measured 32m44s user
+against 35m55s wall, almost all of it zlib decompression and compression. The
+regrid itself is free.
+
+Threads do not help: HDF5 is not thread-safe, so xarray serialises every netCDF
+read behind a global lock and a member uses barely one core no matter how many
+dask workers it gets. `CONCURRENT_MEMBERS` is the dial that matters;
+`DASK_WORKERS` is nearly inert.
 
 Casper is arguably the better home for this, being the analysis machine and
 closer to campaign storage. The same script runs there with

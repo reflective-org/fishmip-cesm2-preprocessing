@@ -283,6 +283,20 @@ introduce them.
 Measured in the 2026-09-24 dry run (WACCM baseline, 2040, surface), against each field's
 maximum: `no3` −1.3e-4 (0.6%), `phydiat` −7.4e-4 (1.3%), `phyc` −2.2e-7 (0.003%).
 
+Over the full window and depth (MCB member 001, 2035–2069), clipping touches more cells
+than a single surface year suggests but still almost no mass:
+
+| Variable | Cells clipped | Field removed | Most negative |
+|---|---|---|---|
+| `no3` | 1.72 M | 0.002% | −4.7e-3 |
+| `phyc` | 6.77 M | 0.060% | −4.5e-3 |
+| `phydiat` | 7.22 M | 0.291% | −7.0e-3 |
+| `zooc` | 1.26 M | 0.013% | −9.2e-4 |
+
+`phydiat` is the outlier at 0.291%, an order of magnitude above the others, which is
+consistent with it being the most variable field — diatom blooms produce the sharpest
+gradients for the advection scheme to overshoot on.
+
 Negative concentrations are not usable forcing, so they are clipped to zero (decision:
 Kelsey Roberts, 2026-09-24). Because this edits data on its way to a public bucket, every
 clip is reported — cells affected, most negative value, and the proportion of the field
