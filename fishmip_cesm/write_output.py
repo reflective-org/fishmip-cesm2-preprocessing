@@ -78,6 +78,22 @@ EXPECTED_LEVELS = {
 COMPRESSION = {"zlib": True, "complevel": 4, "dtype": "float32"}
 
 
+def is_complete(target: Path, expected_months: int) -> bool:
+    """Whether this file has already been written in full.
+
+    Existence alone is not enough. A job killed mid-write leaves a short file,
+    and treating that as done would publish a gap that nothing downstream would
+    notice. An unreadable file is not complete either.
+    """
+    if not target.exists():
+        return False
+    try:
+        with xr.open_dataset(target) as written:
+            return written.sizes.get("time") == expected_months
+    except (OSError, ValueError):
+        return False
+
+
 def _fishmip_name(cesm_name: str) -> str:
     return CONVERSIONS[cesm_name][0]
 
@@ -148,6 +164,7 @@ def write_variable(
     ocean: xr.DataArray,
     out_dir: Path,
     write: bool,
+    overwrite: bool = False,
 ) -> bool:
     """Regrid, gate and optionally write one variable for one member."""
     plan = plan_output(
@@ -163,6 +180,11 @@ def write_variable(
         # not to write would load ~25 GB for a full-depth variable.
         print(f"  would write {plan.filename}  (~{plan.gigabytes:.2f} GB)")
         print(f"            -> s3://{BUCKET}/{plan.key}")
+        return True
+
+    target = out_dir / plan.filename
+    if not overwrite and is_complete(target, plan.months):
+        print(f"  {fishmip_name}: already written, skipping")
         return True
 
     flat = _to_cells(native)
@@ -210,7 +232,6 @@ def write_variable(
         description=f"{ensemble.model} {ensemble.name}",
     )
     dataset = dataset.assign_coords(time=native["time"])
-    target = out_dir / plan.filename
     target.parent.mkdir(parents=True, exist_ok=True)
     dataset.to_netcdf(target, encoding={fishmip_name: COMPRESSION})
     print(f"  wrote {target} ({target.stat().st_size / 1e9:.2f} GB)")
@@ -226,6 +247,11 @@ def main() -> int:
     parser.add_argument("--variable", help="a single FishMIP variable")
     parser.add_argument(
         "--write", action="store_true", help="actually write files (default: dry run)"
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="rewrite files that are already complete (default: skip them)",
     )
     parser.add_argument(
         "--workers",
@@ -341,6 +367,7 @@ def main() -> int:
                     ocean,
                     args.out_dir,
                     args.write,
+                    args.overwrite,
                 )
                 if ok:
                     total_gb += plan_output(

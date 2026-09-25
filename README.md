@@ -151,6 +151,30 @@ dask's own default is one per core, and each concurrent chunk holds its own
 intermediates, which is how a 10 GB machine runs out on `thetao`. Raise it with
 `--workers` if you have the headroom.
 
+## Running the full set
+
+Members are independent, so the job fans out over them. On Derecho:
+
+```
+qsub -A <PROJECT> scripts/write_all.pbs
+```
+
+One node, 16 members at a time, 4 dask workers each. About 18 minutes per
+member serial, so roughly 40 minutes wall clock for all 34.
+
+**Re-submitting is the recovery path.** Complete files are skipped; truncated
+ones -- from a job killed mid-write -- are rewritten. Existence alone is not
+treated as done, because a short file would publish a gap that nothing
+downstream would notice.
+
+The work is I/O bound: profiling measured the regrid at zero seconds beyond the
+time spent reading. Concurrency is therefore about keeping reads in flight, not
+about cores, and `--workers` past a handful buys little.
+
+Casper is arguably the better home for this, being the analysis machine and
+closer to campaign storage. The same script runs there with
+`-q casper -l select=1:ncpus=36:mem=100GB` and a lower `CONCURRENT_MEMBERS`.
+
 ## Tests
 
 ```
