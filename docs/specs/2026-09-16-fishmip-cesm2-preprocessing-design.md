@@ -219,6 +219,13 @@ Flux variables conserved to ~1e-16, `intpp` integrated to 49.3083 PgC/yr after r
 (unchanged from the native grid), 44504 of 64800 target cells resolved as ocean, and no
 ocean cell was left without a value in any variable.
 
+> **These figures were measured on a shifted time axis** and are superseded. They predate
+> the discovery that POP stamps monthly means at the end of their interval, so each "2040"
+> annual mean actually averaged 2039-12 to 2040-11. Re-measured after the fix, MCB 2040
+> global NPP is **49.221 PgC/yr**, not 49.371. The shift was identical across all four
+> ensembles, so the comparison between them is unaffected; the absolute values move by a
+> few tenths. Re-run `dry_run` to refresh the rest.
+
 Repeated across **all four ensembles**, member 001, year 2040 — every variable passed:
 
 | Ensemble | Global NPP after regrid | Conservation |
