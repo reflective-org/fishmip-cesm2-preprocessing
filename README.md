@@ -180,6 +180,22 @@ Casper is arguably the better home for this, being the analysis machine and
 closer to campaign storage. The same script runs there with
 `-q casper -l select=1:ncpus=36:mem=100GB` and a lower `CONCURRENT_MEMBERS`.
 
+### Without an allocation
+
+```
+nohup bash scripts/write_all_local.sh > logs/local.log 2>&1 &
+tail -f logs/local.log
+```
+
+Two members at a time, one core each, `nice -n 19`, zlib level 1. Login nodes
+are shared and NCAR's arbiter throttles users who take too much of one, so this
+is deliberately slow -- expect most of a day. Stopping and restarting is the
+normal way to use it: completed files are skipped and truncated ones are
+rewritten, so kill it whenever the node is busy.
+
+Level 1 compression is the main lever available here. The job is CPU bound on
+zlib, so it roughly halves the write cost for files about 15% larger.
+
 ## Tests
 
 ```

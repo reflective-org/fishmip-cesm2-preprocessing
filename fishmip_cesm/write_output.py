@@ -76,7 +76,13 @@ EXPECTED_LEVELS = {
 # float32 is what the plan's size estimate assumes and what CMIP writes. The
 # regrid works in float64, so without this every file is twice the planned size
 # and deflate spends its effort on digits that carry no information.
+# Level 4 by default. The job is CPU bound on zlib, so on a machine where cycles
+# are the scarce thing, level 1 costs a little size and saves a lot of time.
 COMPRESSION = {"zlib": True, "complevel": 4, "dtype": "float32"}
+
+
+def compression(complevel: int) -> dict:
+    return {**COMPRESSION, "complevel": complevel}
 
 
 def is_complete(target: Path, expected_months: int) -> bool:
@@ -166,6 +172,7 @@ def write_variable(
     out_dir: Path,
     write: bool,
     overwrite: bool = False,
+    complevel: int = 4,
 ) -> bool:
     """Regrid, gate and optionally write one variable for one member."""
     plan = plan_output(
@@ -239,7 +246,7 @@ def write_variable(
     import dask
 
     delayed = dataset.to_netcdf(
-        target, encoding={fishmip_name: COMPRESSION}, compute=False
+        target, encoding={fishmip_name: compression(complevel)}, compute=False
     )
     if clip_stats is None:
         dask.compute(delayed)
@@ -262,6 +269,13 @@ def main() -> int:
     parser.add_argument("--variable", help="a single FishMIP variable")
     parser.add_argument(
         "--write", action="store_true", help="actually write files (default: dry run)"
+    )
+    parser.add_argument(
+        "--complevel",
+        type=int,
+        default=4,
+        help="zlib level 1-9 (default 4; 1 is much faster and only a little "
+        "larger, which matters because the job is CPU bound on compression)",
     )
     parser.add_argument(
         "--overwrite",
@@ -383,6 +397,7 @@ def main() -> int:
                     args.out_dir,
                     args.write,
                     args.overwrite,
+                    args.complevel,
                 )
                 if ok:
                     total_gb += plan_output(
