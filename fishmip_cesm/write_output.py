@@ -22,6 +22,7 @@ from pathlib import Path
 import xarray as xr
 
 from fishmip_cesm.catalog import parse_timeseries_filename
+from fishmip_cesm.chunking import time_chunk
 from fishmip_cesm.ensembles import ANALYSIS_WINDOW, ENSEMBLES
 from fishmip_cesm.naming import BUCKET
 from fishmip_cesm.output import to_fishmip_dataset, unflatten
@@ -111,10 +112,17 @@ def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
     paths = _window_paths(month_1, variable, window)
     if not paths:
         return None
-    # Chunk along time only: the regrid needs the horizontal axes whole, and a
-    # year of a 60-level field is about 700 MB.
+    # Chunk along time only -- the regrid needs the horizontal axes whole --
+    # and size the chunk by depth, so a 60-level field does not ask for sixty
+    # times the memory of a surface one.
+    probe = xr.open_dataset(paths[0], decode_timedelta=True)[variable]
+    depth = depth_dim(probe)
+    levels = probe.sizes[depth] if depth else 1
     dataset = xr.open_mfdataset(
-        paths, combine="by_coords", decode_timedelta=True, chunks={"time": 12}
+        paths,
+        combine="by_coords",
+        decode_timedelta=True,
+        chunks={"time": time_chunk(levels)},
     )
     # Centre before subsetting. POP stamps a monthly mean at the end of its
     # interval, so slicing the raw stamps shifts every month by one and drops
@@ -219,7 +227,18 @@ def main() -> int:
     parser.add_argument(
         "--write", action="store_true", help="actually write files (default: dry run)"
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=2,
+        help="dask threads (default 2; the default pool is one per core, and "
+        "each concurrent chunk holds its own intermediates)",
+    )
     args = parser.parse_args()
+
+    import dask
+
+    dask.config.set(scheduler="threads", num_workers=args.workers)
 
     if not args.weights.exists():
         print(f"weight file not found: {args.weights}")

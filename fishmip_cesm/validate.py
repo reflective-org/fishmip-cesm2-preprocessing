@@ -151,15 +151,27 @@ def clip_negatives(
         )
 
     negative = field < 0
-    cells = int(negative.sum())
-    removed = float(field.where(negative).sum())
-    kept = float(field.where(~negative).sum())
+    # One pass, not three. Each of these reductions would otherwise re-run the
+    # whole regrid chain from the source files, and on a full-depth field that
+    # is several gigabytes of recomputation apiece.
+    cells_lazy = negative.sum()
+    removed_lazy = field.where(negative).sum()
+    kept_lazy = field.where(~negative).sum()
+    if field.chunks is not None:
+        import dask
+
+        cells_lazy, removed_lazy, kept_lazy = dask.compute(
+            cells_lazy, removed_lazy, kept_lazy
+        )
+    cells = int(cells_lazy)
+    removed = float(removed_lazy)
+    kept = float(kept_lazy)
     return (
         field.where(~negative, 0.0),
         ClipReport(
             variable=fishmip_name,
             cells=cells,
-            most_negative=float(field.min()) if cells else 0.0,
+            most_negative=float(field.min()) if cells else 0.0,  # noqa
             removed_fraction=abs(removed) / kept if kept else 0.0,
         ),
     )

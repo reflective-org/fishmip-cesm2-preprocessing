@@ -144,9 +144,12 @@ python -m fishmip_cesm.write_output --weights grids/... \
     --ensemble MCB --member 001 --variable intpp --write --out-dir output
 ```
 
-Memory: fields stream through the regrid a year at a time rather than being
-held whole. A full-depth variable over 2035-2069 is around 25 GB, so nothing
-loads it in one piece.
+Memory: fields stream through the regrid in chunks sized by depth, so a
+60-level variable does not ask for sixty times the memory of a surface one
+(2 months per chunk rather than 60). Concurrency defaults to 2 dask threads --
+dask's own default is one per core, and each concurrent chunk holds its own
+intermediates, which is how a 10 GB machine runs out on `thetao`. Raise it with
+`--workers` if you have the headroom.
 
 ## Tests
 
