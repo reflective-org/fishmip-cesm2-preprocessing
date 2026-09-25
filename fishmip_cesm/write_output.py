@@ -135,8 +135,8 @@ def write_variable(
 ) -> bool:
     """Regrid, gate and optionally write one variable for one member."""
     plan = plan_output(
-        model=ensemble.model,
-        scenario=ensemble.name,
+        model=ensemble.source_id,
+        scenario=ensemble.experiment_id,
         member=member,
         variable=fishmip_name,
         window=ANALYSIS_WINDOW,
@@ -183,11 +183,14 @@ def write_variable(
     dataset = to_fishmip_dataset(
         fishmip_name,
         field,
-        model=ensemble.model,
-        scenario=ensemble.name,
+        # source_id and experiment_id are CMIP identifiers, not descriptions;
+        # the human-readable labels go in the title.
+        model=ensemble.source_id,
+        scenario=ensemble.experiment_id,
         member=member,
         cesm_source=cesm_source,
         notes=notes,
+        description=f"{ensemble.model} {ensemble.name}",
     )
     dataset = dataset.assign_coords(time=native["time"])
     target = out_dir / plan.filename
@@ -236,40 +239,57 @@ def main() -> int:
                 continue
             print(f"\n{ensemble.name} member {member}")
 
-            temperature = _open_window(month_1, "TEMP", ANALYSIS_WINDOW)
-            if temperature is None:
-                print("  no TEMP, skipping")
-                failures += 1
-                continue
-            grid = xr.open_dataset(
-                sorted(month_1.glob("*.pop.h.TEMP.*.nc"))[0], decode_timedelta=True
-            )
-            kmt = grid["KMT"]
+            work: list[tuple[str, str, xr.DataArray | None]] = []
             ocean = None
-            if args.write:
-                ocean = regrid_variable(
-                    "thetao",
-                    _to_cells(xr.ones_like(kmt).where(kmt > 0)),
-                    weights,
-                    n_target,
-                ).notnull().compute()
 
-            work: list[tuple[str, str, xr.DataArray]] = []
-            for cesm_name in DIRECT_SOURCES:
-                raw = (
-                    temperature
-                    if cesm_name == "TEMP"
-                    else _open_window(month_1, cesm_name, ANALYSIS_WINDOW)
-                )
-                if raw is None:
-                    print(f"  {cesm_name}: not found, skipping")
+            if not args.write:
+                # A dry run reads directory listings only. Nothing is opened,
+                # decoded or held, so it costs neither time nor memory.
+                for cesm_name in DIRECT_SOURCES:
+                    if not _window_paths(month_1, cesm_name, ANALYSIS_WINDOW):
+                        print(f"  {cesm_name}: not found")
+                        failures += 1
+                        continue
+                    work.append((_fishmip_name(cesm_name), cesm_name, None))
+                work.append(("tob", "TEMP", None))
+            else:
+                temperature = _open_window(month_1, "TEMP", ANALYSIS_WINDOW)
+                if temperature is None:
+                    print("  no TEMP, skipping")
                     failures += 1
                     continue
-                work.append((_fishmip_name(cesm_name), cesm_name, convert_variable(cesm_name, raw)))
-            if args.write:
+                grid = xr.open_dataset(
+                    sorted(month_1.glob("*.pop.h.TEMP.*.nc"))[0], decode_timedelta=True
+                )
+                kmt = grid["KMT"]
+                ocean = (
+                    regrid_variable(
+                        "thetao",
+                        _to_cells(xr.ones_like(kmt).where(kmt > 0)),
+                        weights,
+                        n_target,
+                    )
+                    .notnull()
+                    .compute()
+                )
+                for cesm_name in DIRECT_SOURCES:
+                    raw = (
+                        temperature
+                        if cesm_name == "TEMP"
+                        else _open_window(month_1, cesm_name, ANALYSIS_WINDOW)
+                    )
+                    if raw is None:
+                        print(f"  {cesm_name}: not found, skipping")
+                        failures += 1
+                        continue
+                    work.append(
+                        (
+                            _fishmip_name(cesm_name),
+                            cesm_name,
+                            convert_variable(cesm_name, raw),
+                        )
+                    )
                 work.append(("tob", "TEMP", derive_tob(temperature, kmt)))
-            else:
-                work.append(("tob", "TEMP", temperature))
 
             for fishmip_name, cesm_source, field in work:
                 if args.variable and fishmip_name != args.variable:
@@ -296,8 +316,8 @@ def main() -> int:
                 )
                 if ok:
                     total_gb += plan_output(
-                        model=ensemble.model,
-                        scenario=ensemble.name,
+                        model=ensemble.source_id,
+                        scenario=ensemble.experiment_id,
                         member=member,
                         variable=fishmip_name,
                         window=ANALYSIS_WINDOW,

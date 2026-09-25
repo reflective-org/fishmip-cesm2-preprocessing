@@ -44,8 +44,16 @@ _MEMBER = "[0-9][0-9][0-9]"
 
 @dataclass(frozen=True)
 class Ensemble:
+    #: Human-readable label. Used in logs and reports, never in filenames.
     name: str
+    #: Human-readable model description.
     model: str
+    #: CMIP-style identifiers. These are what appear in published filenames and
+    #: object keys, so they must be stable, lowercase and meaningful to someone
+    #: who has never seen this repository. Display labels are not identifiers:
+    #: "SSP2-4.5 (WACCM baseline)" would publish as ssp2-4p5-waccm-baseline.
+    source_id: str
+    experiment_id: str
     root: Path
     case_glob: str
 
@@ -54,12 +62,16 @@ ENSEMBLES = [
     Ensemble(
         name="SSP2-4.5 (WACCM baseline)",
         model="CESM2-WACCM6",
+        source_id="cesm2-waccm6",
+        experiment_id="ssp245",
         root=GDEX / "d651045" / "CESM2-WACCM-SSP245",
         case_glob=f"b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{_MEMBER}",
     ),
     Ensemble(
         name="G6-1.5K-SAI",
         model="CESM2-WACCM6",
+        source_id="cesm2-waccm6",
+        experiment_id="g6-1p5k-sai",
         # Lives inside the GDEX dataset labelled ARISE-SAI-1.5, alongside the
         # ARISE runs proper. The glob must not pick those up.
         root=GDEX / "d651059" / "ARISE-SAI-1.5",
@@ -68,6 +80,8 @@ ENSEMBLES = [
     Ensemble(
         name="SSP2-4.5 (CAM6 baseline)",
         model="CESM2.1-CAM6",
+        source_id="cesm2-cam6",
+        experiment_id="ssp245",
         # Case directories nest inside a container directory of the same name.
         root=GDEX / "d651073" / "b.e21.BSSP245smbb.f09_g17",
         case_glob=f"b.e21.BSSP245smbb.f09_g17.{_MEMBER}",
@@ -75,6 +89,8 @@ ENSEMBLES = [
     Ensemble(
         name="G6-1.5K-MCB",
         model="CESM2.1-CAM6",
+        source_id="cesm2-cam6",
+        experiment_id="g6-1p5k-mcb",
         # feedback, not feedforward: the scenario uses a PI controller.
         root=CAMPAIGN / "MCB_feedback_1DOF_smbb",
         case_glob=f"b.e21.BSSP245smbb.f09_g17.MCB-feedback-1DOF.{_MEMBER}",

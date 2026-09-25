@@ -297,6 +297,11 @@ that discriminates.
 
 FishMIP file naming convention, one file per variable / scenario / member.
 
+Estimated volume for the full set at full depth: **~625 GB uncompressed**, roughly halved
+by deflate. `thetao` and `no3` are 60-level fields at ~6.5 GB per member and account for
+about two-thirds of that. Worth asking whether FEISTY and BOATS need full-depth `thetao`
+at all, given `tob` is supplied separately — see Open decisions.
+
 **Destination: `reflective-data-store`, under a new `fishmip/` prefix** (Kelsey Roberts,
 2026-09-24). The bucket is publicly readable; writes are authenticated. This resolves the
 upstream spec's open question, which had read "Files to levante (or possible to give
@@ -311,8 +316,15 @@ without listing the whole prefix.
 
 **Filenames follow ISIMIP3b/FishMIP forcing conventions, but the pattern is a proposal:**
 
-    <model>_<scenario>_<member>_<variable>_onedeg_global_monthly_<start>_<end>.nc
+    <source_id>_<experiment_id>_<member>_<variable>_onedeg_global_monthly_<start>_<end>.nc
     cesm2-waccm6_g6-1p5k-sai_001_intpp_onedeg_global_monthly_2035_2069.nc
+    cesm2-cam6_ssp245_001_intpp_onedeg_global_monthly_2035_2069.nc
+
+Each ensemble declares an explicit `source_id` and `experiment_id`; filenames are never
+built from display labels. Both baselines share `experiment_id = ssp245` and are
+distinguished by `source_id`, which is what a reader would expect — they are the same
+scenario in two model configurations. Building the token from the internal label instead
+produced `ssp2-4p5-waccm-baseline`, which is not an experiment anyone can look up.
 
 The scenario tokens have no established FishMIP spelling — G6-1.5K-SAI and G6-1.5K-MCB
 postdate the protocol — so Kelsey Roberts and Colleen Petrik should confirm before

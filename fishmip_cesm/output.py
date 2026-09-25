@@ -37,6 +37,7 @@ def to_fishmip_dataset(
     member: str,
     cesm_source: str,
     notes: str = "",
+    description: str = "",
 ) -> xr.Dataset:
     """Wrap a regridded field as a self-describing FishMIP forcing dataset.
 
@@ -68,7 +69,10 @@ def to_fishmip_dataset(
 
     dataset.attrs = {
         "Conventions": CONVENTIONS,
-        "title": f"FishMIP forcing: {variable}, {model} {scenario} {member}",
+        "title": (
+            f"FishMIP forcing: {variable}, "
+            f"{description or f'{model} {scenario}'} member {member}"
+        ),
         "source_id": model,
         "experiment_id": scenario,
         "variant_label": member,
