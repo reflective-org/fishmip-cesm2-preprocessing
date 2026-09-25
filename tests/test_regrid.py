@@ -214,3 +214,4 @@ def test_apply_weights_handles_a_field_chunked_along_the_cell_axis():
 
     assert result.chunks is not None, "regrid forced computation"
     np.testing.assert_allclose(result.compute().values, [[7.0], [14.0]])
+

@@ -8,9 +8,15 @@ that fits in 10 GB and one that does not.
 # POP gx1v7 horizontal size.
 SOURCE_CELLS = 384 * 320
 
-# Per chunk, before dask runs several concurrently. Deliberately modest: the
-# regrid holds the input chunk, the ocean-fraction chunk and the output at once.
-TARGET_CHUNK_BYTES = 64 * 1024 * 1024
+# Per chunk, before dask runs several concurrently.
+#
+# Too small is its own failure mode: dask chunks smaller than the netCDF file's
+# internal chunks make the same compressed blocks decompress repeatedly, and the
+# job becomes I/O bound on data it has already read. This was set to 64 MB while
+# chasing a memory problem whose real cause was elsewhere (unflatten
+# materialising the whole variable), and the small chunks then became the
+# bottleneck.
+TARGET_CHUNK_BYTES = 256 * 1024 * 1024
 
 # More months than this buys nothing and makes the graph coarse.
 MAX_MONTHS = 60
