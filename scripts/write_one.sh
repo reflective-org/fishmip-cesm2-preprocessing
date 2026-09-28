@@ -16,6 +16,7 @@ python -m fishmip_cesm.write_output \
 status=$?
 
 echo "[$(date +%H:%M:%S)] end   ${ensemble} ${member} (exit ${status})"
-# Deliberately not fatal: one bad member should not take the array with it.
-# Re-running the job skips whatever completed and retries the rest.
-exit 0
+# Report the real status. xargs keeps going on any code except 255, so one bad
+# member still does not take the array with it -- but swallowing the code made
+# a run where every member failed print "done" and exit clean.
+exit "${status}"

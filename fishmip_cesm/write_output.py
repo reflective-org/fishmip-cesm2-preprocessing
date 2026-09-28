@@ -85,6 +85,26 @@ def compression(complevel: int) -> dict:
     return {**COMPRESSION, "complevel": complevel}
 
 
+_OUT_OF_ROOM = ("disk quota exceeded", "no space left on device", "errno = 122")
+
+
+def describe_write_failure(error: BaseException) -> str:
+    """A message that says what to do, not just what went wrong.
+
+    HDF5 buries the cause under twenty lines of diagnostics, and "NetCDF: HDF
+    error" on its own tells you nothing. Running out of room is by far the most
+    likely reason a write fails here, and the fix is a different filesystem.
+    """
+    text = str(error)
+    if any(marker in text.lower() for marker in _OUT_OF_ROOM):
+        return (
+            "out of disk quota or space. The full set is around 280 GB, which "
+            "will not fit in a GLADE home directory -- write to scratch "
+            "instead, e.g. --out-dir /glade/derecho/scratch/$USER/fishmip"
+        )
+    return f"{type(error).__name__}: {text}"
+
+
 def is_complete(target: Path, expected_months: int) -> bool:
     """Whether this file has already been written in full.
 
@@ -245,16 +265,22 @@ def write_variable(
     # source rather than each triggering their own.
     import dask
 
-    delayed = dataset.to_netcdf(
-        target, encoding={fishmip_name: compression(complevel)}, compute=False
-    )
-    if clip_stats is None:
-        dask.compute(delayed)
-    else:
-        _, *evaluated = dask.compute(delayed, *clip_stats)
-        report = clip_report(fishmip_name, evaluated)
-        if report.cells:
-            print(f"  {report.describe()}")
+    try:
+        delayed = dataset.to_netcdf(
+            target, encoding={fishmip_name: compression(complevel)}, compute=False
+        )
+        if clip_stats is None:
+            dask.compute(delayed)
+        else:
+            _, *evaluated = dask.compute(delayed, *clip_stats)
+            report = clip_report(fishmip_name, evaluated)
+            if report.cells:
+                print(f"  {report.describe()}")
+    except (OSError, RuntimeError, ValueError) as error:
+        print(f"  {fishmip_name}: FAILED -- {describe_write_failure(error)}")
+        # A partial file would otherwise look resumable and never be retried.
+        target.unlink(missing_ok=True)
+        return False
 
     print(f"  wrote {target} ({target.stat().st_size / 1e9:.2f} GB)")
     return True

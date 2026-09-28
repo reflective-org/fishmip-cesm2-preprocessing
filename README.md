@@ -182,7 +182,11 @@ closer to campaign storage. The same script runs there with
 
 ### Without an allocation
 
+The full set is about **280 GB**, which will not fit in a GLADE home directory.
+Write to scratch:
+
 ```
+export OUT_DIR=/glade/derecho/scratch/$USER/fishmip
 nohup bash scripts/write_all_local.sh > logs/local.log 2>&1 &
 tail -f logs/local.log
 ```

@@ -45,6 +45,7 @@ echo
 run_one() {
     IFS='|' read -r ensemble member <<< "$1"
     echo "$(date +%T) >> ${ensemble} ${member}"
+    status=0
     nice -n 19 python -m fishmip_cesm.write_output \
         --weights "${WEIGHTS}" \
         --out-dir "${OUT_DIR}" \
@@ -52,15 +53,30 @@ run_one() {
         --member "${member}" \
         --workers "${DASK_WORKERS}" \
         --complevel "${COMPLEVEL}" \
-        --write
-    echo "$(date +%T) << ${ensemble} ${member} (exit $?)"
+        --write || status=$?
+    echo "$(date +%T) << ${ensemble} ${member} (exit ${status})"
+    return "${status}"
 }
 export -f run_one
 
 xargs -a logs/tasks.txt -d '\n' -P "${CONCURRENT_MEMBERS}" -I{} \
     bash -c 'run_one "$@"' _ {}
+xargs_status=$?
 
 written=$(ls -1 "${OUT_DIR}"/*.nc 2>/dev/null | wc -l)
+expected=$(( total * 9 ))
 echo
-echo "$(date +%F\ %T) done: ${written} file(s) in ${OUT_DIR}"
-echo "re-run this script to retry anything missing"
+echo "$(date +%F\ %T) finished: ${written} of ${expected} file(s) in ${OUT_DIR}"
+
+if [ "${xargs_status}" -ne 0 ] || [ "${written}" -lt "${expected}" ]; then
+    echo
+    echo "SOME MEMBERS FAILED. Look for 'FAILED' in this log."
+    echo "Running out of room is the usual cause: the full set is about 280 GB,"
+    echo "which does not fit in a GLADE home directory. Set OUT_DIR to scratch."
+    echo
+    echo "Then check what landed and retry:"
+    echo "  python -m fishmip_cesm.verify_output --out-dir ${OUT_DIR} --delete-bad"
+    echo "  bash scripts/write_all_local.sh"
+    exit 1
+fi
+echo "all members complete"
