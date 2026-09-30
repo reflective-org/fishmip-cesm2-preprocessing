@@ -6,7 +6,8 @@ set -uo pipefail
 IFS='|' read -r ensemble member <<< "$1"
 echo "[$(date +%H:%M:%S)] start ${ensemble} ${member}"
 
-python -m fishmip_cesm.write_output \
+timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT:-3h}" \
+    python -m fishmip_cesm.write_output \
     --weights "${WEIGHTS}" \
     --out-dir "${OUT_DIR}" \
     --ensemble "${ensemble}" \

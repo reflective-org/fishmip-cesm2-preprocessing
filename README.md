@@ -200,6 +200,19 @@ rewritten, so kill it whenever the node is busy.
 Level 1 compression is the main lever available here. The job is CPU bound on
 zlib, so it roughly halves the write cost for files about 15% larger.
 
+**`HDF5_USE_FILE_LOCKING=FALSE` is set by the runners and matters.** Scratch is
+Lustre, HDF5 takes file locks by default, and locking on Lustre can block
+forever rather than fail. A run hung in state `S` for 38 hours with no output.
+Each member also runs under a `timeout` (`MEMBER_TIMEOUT`, default 3h), so a
+hang is bounded and retried on the next run rather than stalling everything.
+
+Progress is visible without reading logs -- a dry run reports what is already
+done:
+
+```
+python -m fishmip_cesm.write_output --weights grids/... --out-dir "$OUT_DIR"
+```
+
 ## Verifying what landed
 
 ```

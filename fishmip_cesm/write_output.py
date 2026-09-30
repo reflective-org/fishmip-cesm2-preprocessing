@@ -206,7 +206,13 @@ def write_variable(
     if not write:
         # Nothing is computed on a dry run. Regridding first and then deciding
         # not to write would load ~25 GB for a full-depth variable.
-        print(f"  would write {plan.filename}  (~{plan.gigabytes:.2f} GB)")
+        #
+        # Existing files are reported too, so a dry run doubles as a progress
+        # report: after a long batch it is the quickest way to see what is left.
+        if is_complete(out_dir / plan.filename, plan.months):
+            print(f"  done         {plan.filename}")
+            return True
+        print(f"  would write  {plan.filename}  (~{plan.gigabytes:.2f} GB)")
         print(f"            -> s3://{BUCKET}/{plan.key}")
         return True
 
@@ -425,7 +431,21 @@ def main() -> int:
                     args.overwrite,
                     args.complevel,
                 )
-                if ok:
+                if ok and not (
+                    not args.write
+                    and is_complete(
+                        args.out_dir
+                        / plan_output(
+                            model=ensemble.source_id,
+                            scenario=ensemble.experiment_id,
+                            member=member,
+                            variable=fishmip_name,
+                            window=ANALYSIS_WINDOW,
+                            levels=levels,
+                        ).filename,
+                        420,
+                    )
+                ):
                     total_gb += plan_output(
                         model=ensemble.source_id,
                         scenario=ensemble.experiment_id,
@@ -437,8 +457,12 @@ def main() -> int:
                 else:
                     failures += 1
 
-    verb = "wrote" if args.write else "would write"
-    print(f"\n{verb} approximately {total_gb:.1f} GB uncompressed")
+    if args.write:
+        print(f"\nwrote approximately {total_gb:.1f} GB uncompressed")
+    else:
+        done = len(list(args.out_dir.glob("*.nc"))) if args.out_dir.is_dir() else 0
+        print(f"\n{done} file(s) already in {args.out_dir}")
+        print(f"still to write: approximately {total_gb:.1f} GB uncompressed")
     if failures:
         print(f"{failures} variable(s) failed or were missing.")
         return 1

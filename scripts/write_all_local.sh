@@ -34,6 +34,11 @@ if [ ! -f "${WEIGHTS}" ]; then
     exit 2
 fi
 
+# HDF5 takes file locks by default and locking on Lustre is unreliable enough
+# that it can block forever rather than fail. A run hung here for 38 hours in
+# state S with no output at all, which is worse than any crash.
+export HDF5_USE_FILE_LOCKING=FALSE
+
 export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL
 
 python scripts/list_tasks.py > logs/tasks.txt
@@ -46,7 +51,11 @@ run_one() {
     IFS='|' read -r ensemble member <<< "$1"
     echo "$(date +%T) >> ${ensemble} ${member}"
     status=0
-    nice -n 19 python -m fishmip_cesm.write_output \
+    # A member takes well under an hour; three is generous. Without this a
+    # single hung write stalls the whole run indefinitely, and resume makes
+    # killing and retrying cheap.
+    timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT:-3h}" \
+        nice -n 19 python -m fishmip_cesm.write_output \
         --weights "${WEIGHTS}" \
         --out-dir "${OUT_DIR}" \
         --ensemble "${ensemble}" \
@@ -54,6 +63,9 @@ run_one() {
         --workers "${DASK_WORKERS}" \
         --complevel "${COMPLEVEL}" \
         --write || status=$?
+    if [ "${status}" -eq 124 ]; then
+        echo "$(date +%T) !! ${ensemble} ${member} TIMED OUT -- will retry on re-run"
+    fi
     echo "$(date +%T) << ${ensemble} ${member} (exit ${status})"
     return "${status}"
 }
