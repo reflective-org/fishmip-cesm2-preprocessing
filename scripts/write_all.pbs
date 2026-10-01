@@ -44,7 +44,10 @@ export OUT_DIR="${OUT_DIR:-output}"
 # Derecho node's 128 cores and 200 GB, and finishes in about the time a single
 # member takes.
 CONCURRENT_MEMBERS="${CONCURRENT_MEMBERS:-34}"
-export DASK_WORKERS="${DASK_WORKERS:-2}"
+# One worker: HDF5 is not thread-safe and concurrent writes into a single file
+# corrupted chunks. Parallelism comes from CONCURRENT_MEMBERS, which is separate
+# processes, and threads were never helping anyway.
+export DASK_WORKERS="${DASK_WORKERS:-1}"
 
 if [ ! -f "${WEIGHTS}" ]; then
     echo "weight file not found: ${WEIGHTS}" >&2

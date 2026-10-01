@@ -22,6 +22,11 @@ OUT_DIR="${OUT_DIR:-output}"
 # Two concurrent members at one core each. Raising this is what gets a login
 # node account throttled; it is not the place to make up time.
 CONCURRENT_MEMBERS="${CONCURRENT_MEMBERS:-2}"
+# One worker, deliberately. HDF5 is not thread-safe, and concurrent writes into
+# one file produced chunk-level corruption: "filter returned failure during
+# read" while writing, which is HDF5 failing to decompress a chunk it had just
+# written. Threads were never buying anything here -- the work is CPU bound and
+# HDF5 serialises reads behind a global lock -- so this costs nothing.
 DASK_WORKERS="${DASK_WORKERS:-1}"
 
 # The work is CPU bound on zlib. Level 1 roughly halves the compression cost for

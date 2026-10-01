@@ -226,7 +226,17 @@ writing it at once, and neither leaves a trace in the run log.
 Each file is reported ok, incomplete or bad. `--delete-bad` removes the failures
 so re-running the writer rewrites them.
 
-Run this before any upload.
+By default only the first timestep is read, which is fast and catches a
+truncated or unreadable file. **Before publishing, use `--deep`**, which reads
+every chunk:
+
+```
+python -m fishmip_cesm.verify_output --out-dir "$OUT_DIR" --deep
+```
+
+That is the only way to see corruption or bad values later in a file. A damaged
+file passed the shallow check and then failed on write with a decompression
+error, so the shallow check is a smoke test, not the gate.
 
 ## Tests
 

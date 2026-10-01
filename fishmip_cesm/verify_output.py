@@ -32,8 +32,15 @@ def _variable_of(dataset: xr.Dataset) -> str | None:
     return known[0] if len(known) == 1 else None
 
 
-def verify(path: Path) -> tuple[str, str]:
-    """Return (verdict, detail) for one written file."""
+def verify(path: Path, deep: bool = False) -> tuple[str, str]:
+    """Return (verdict, detail) for one written file.
+
+    Shallow by default: the first timestep only, which is fast and catches a
+    truncated or unreadable file. `deep` reads every chunk, which is the only
+    way to see corruption or bad values later in the file -- a damaged file
+    passed the shallow check and then failed on write with a decompression
+    error. Slow, but it is the gate before publication.
+    """
     try:
         dataset = xr.open_dataset(path)
     except (OSError, ValueError) as error:
@@ -53,12 +60,18 @@ def verify(path: Path) -> tuple[str, str]:
         # and reading every month of every file would cost as much as writing
         # them did.
         try:
-            sample = field.isel(time=0)
-            if "lev" in sample.dims or "z_t" in sample.dims:
-                sample = sample.isel({d: 0 for d in sample.dims if d.startswith("z") or d == "lev"})
+            if deep:
+                # Touches every chunk, so a decompression failure surfaces here
+                # rather than in whatever reads the file next.
+                sample = field
+            else:
+                sample = field.isel(time=0)
+                depth = [d for d in sample.dims if d.startswith("z") or d == "lev"]
+                if depth:
+                    sample = sample.isel({d: 0 for d in depth})
             checks.append(check_range(name, sample.load()))
-        except (OSError, ValueError) as error:
-            return "bad", f"cannot read values: {type(error).__name__}"
+        except (OSError, ValueError, RuntimeError) as error:
+            return "bad", f"cannot read values: {type(error).__name__}: {error}"
 
         if gate_passed(checks):
             return "ok", f"{name}, {field.sizes['time']} months"
@@ -70,6 +83,13 @@ def verify(path: Path) -> tuple[str, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, default=Path("output"))
+    parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="read every chunk rather than the first timestep. Slow -- a full "
+        "read of the whole set -- but the only way to catch corruption later "
+        "in a file. Use before publishing.",
+    )
     parser.add_argument(
         "--delete-bad",
         action="store_true",
@@ -84,7 +104,7 @@ def main() -> int:
 
     tally = {"ok": 0, "incomplete": 0, "bad": 0}
     for path in paths:
-        verdict, detail = verify(path)
+        verdict, detail = verify(path, deep=args.deep)
         tally[verdict] += 1
         if verdict != "ok":
             print(f"{verdict.upper():10s} {path.name}")

@@ -57,3 +57,37 @@ def test_missing_units_are_bad(tmp_path):
     _write(path, units="")
 
     assert verify(path)[0] == "bad"
+
+
+def _write_with_late_outlier(path, months=MONTHS):
+    """Valid at the start, wrong deep inside -- what shallow checks miss."""
+    time = xr.date_range("2035-01-01", periods=months, freq="MS")
+    values = np.full((months, 2, 2), 1e-6)
+    values[300] = 5.0  # mol m-2 s-1; five orders too large
+    field = xr.DataArray(
+        values,
+        dims=("time", "lat", "lon"),
+        coords={"time": time, "lat": [0.5, 1.5], "lon": [0.5, 1.5]},
+        attrs={"units": "mol m-2 s-1"},
+    )
+    xr.Dataset({"intpp": field}).to_netcdf(path)
+
+
+def test_a_shallow_check_misses_a_problem_deep_in_the_file(tmp_path):
+    path = tmp_path / "late.nc"
+    _write_with_late_outlier(path)
+
+    assert verify(path)[0] == "ok"
+
+
+def test_a_deep_check_finds_it(tmp_path):
+    # Reading only the first timestep cannot see chunk corruption or bad values
+    # later in the file, which is how a damaged file passed verification and
+    # then failed on write.
+    path = tmp_path / "late.nc"
+    _write_with_late_outlier(path)
+
+    verdict, detail = verify(path, deep=True)
+
+    assert verdict == "bad"
+    assert "range" in detail
