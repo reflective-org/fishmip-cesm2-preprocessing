@@ -42,6 +42,7 @@ export HDF5_USE_FILE_LOCKING=FALSE
 export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL
 
 python scripts/list_tasks.py > logs/tasks.txt
+: > logs/timed_out.txt
 total=$(wc -l < logs/tasks.txt)
 echo "$(date +%F\ %T) starting: ${total} members, ${CONCURRENT_MEMBERS} at a time"
 echo "complevel ${COMPLEVEL}, ${DASK_WORKERS} dask worker(s), nice 19"
@@ -65,6 +66,7 @@ run_one() {
         --write || status=$?
     if [ "${status}" -eq 124 ]; then
         echo "$(date +%T) !! ${ensemble} ${member} TIMED OUT -- will retry on re-run"
+        echo "${ensemble}|${member}" >> logs/timed_out.txt
     fi
     echo "$(date +%T) << ${ensemble} ${member} (exit ${status})"
     return "${status}"
@@ -80,13 +82,25 @@ expected=$(( total * 9 ))
 echo
 echo "$(date +%F\ %T) finished: ${written} of ${expected} file(s) in ${OUT_DIR}"
 
+timed_out=$(wc -l < logs/timed_out.txt)
+
 if [ "${xargs_status}" -ne 0 ] || [ "${written}" -lt "${expected}" ]; then
     echo
-    echo "SOME MEMBERS FAILED. Look for 'FAILED' in this log."
-    echo "Running out of room is the usual cause: the full set is about 280 GB,"
-    echo "which does not fit in a GLADE home directory. Set OUT_DIR to scratch."
+    if [ "${timed_out}" -gt 0 ]; then
+        echo "${timed_out} member(s) TIMED OUT after ${MEMBER_TIMEOUT:-3h}:"
+        sed 's/^/  /' logs/timed_out.txt
+        echo
+        echo "A member normally takes well under an hour, so a timeout means a"
+        echo "hang rather than slow progress. The usual cause is a damaged"
+        echo "output file left by an earlier interrupted run: opening it to"
+        echo "check whether it is complete blocks instead of failing."
+    else
+        echo "SOME MEMBERS FAILED. Look for 'FAILED' in this log."
+        echo "Running out of room is a common cause: the full set is about"
+        echo "280 GB, which does not fit in a GLADE home directory."
+    fi
     echo
-    echo "Then check what landed and retry:"
+    echo "Clear anything damaged, then retry:"
     echo "  python -m fishmip_cesm.verify_output --out-dir ${OUT_DIR} --delete-bad"
     echo "  bash scripts/write_all_local.sh"
     exit 1
