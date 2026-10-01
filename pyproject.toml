@@ -7,7 +7,7 @@ name = "fishmip-cesm2-preprocessing"
 version = "0.1.0"
 description = "Preprocess CESM2 POP2/MARBL ocean output into FishMIP forcing"
 requires-python = ">=3.10"
-dependencies = ["xarray", "numpy", "netcdf4", "scipy", "dask"]
+dependencies = ["xarray", "numpy", "netcdf4", "scipy", "dask", "boto3"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pandas"]
@@ -20,6 +20,7 @@ fishmip-check-regrid = "fishmip_cesm.check_regrid:main"
 fishmip-dry-run = "fishmip_cesm.dry_run:main"
 fishmip-write-output = "fishmip_cesm.write_output:main"
 fishmip-verify-output = "fishmip_cesm.verify_output:main"
+fishmip-upload = "fishmip_cesm.upload:main"
 
 [tool.setuptools]
 packages = ["fishmip_cesm"]

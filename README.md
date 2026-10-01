@@ -238,6 +238,28 @@ That is the only way to see corruption or bad values later in a file. A damaged
 file passed the shallow check and then failed on write with a decompression
 error, so the shallow check is a smoke test, not the gate.
 
+## Publishing
+
+```
+python -m fishmip_cesm.upload --out-dir "$OUT_DIR"            # lists only
+python -m fishmip_cesm.upload --out-dir "$OUT_DIR" --publish
+```
+
+**The bucket is world-readable, so uploading is publishing.** A link that has
+been handed out, cached or indexed cannot be recalled by deleting the object.
+Nothing is sent without `--publish`.
+
+Two things must be true first:
+
+- `verify_output --deep` passes on the whole set
+- the filename convention is signed off (see `naming.py` -- the scenario tokens
+  are a proposal, and renaming published files is worse than naming them right)
+
+Credentials come from `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and
+`R2_ACCOUNT_ID`, are read at runtime only, and never reach a file, a log or a
+command line. Objects already present at the same size are skipped, so a
+re-run resumes.
+
 ## Tests
 
 ```
