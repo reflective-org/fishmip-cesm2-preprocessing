@@ -52,10 +52,11 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
             return "bad", f"no recognised variable in {list(dataset.data_vars)}"
 
         field = dataset[name]
-        checks = [
-            check_time_coverage(field, ANALYSIS_WINDOW),
-            check_units(name, field),
-        ]
+        # deptho and thkcello have no time axis; checking coverage on them
+        # would fail a file that is entirely correct.
+        checks = [check_units(name, field)]
+        if "time" in field.dims:
+            checks.insert(0, check_time_coverage(field, ANALYSIS_WINDOW))
         # Range is read from a single timestep: enough to catch a mangled file,
         # and reading every month of every file would cost as much as writing
         # them did.
@@ -65,7 +66,7 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
                 # rather than in whatever reads the file next.
                 sample = field
             else:
-                sample = field.isel(time=0)
+                sample = field.isel(time=0) if "time" in field.dims else field
                 depth = [d for d in sample.dims if d.startswith("z") or d == "lev"]
                 if depth:
                     sample = sample.isel({d: 0 for d in depth})
@@ -74,7 +75,8 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
             return "bad", f"cannot read values: {type(error).__name__}: {error}"
 
         if gate_passed(checks):
-            return "ok", f"{name}, {field.sizes['time']} months"
+            span = f"{field.sizes['time']} months" if "time" in field.dims else "fixed"
+            return "ok", f"{name}, {span}"
         failed = [c for c in checks if not c.passed]
         verdict = "incomplete" if any("time" in c.name for c in failed) else "bad"
         return verdict, "; ".join(f"{c.name}: {c.detail}" for c in failed)

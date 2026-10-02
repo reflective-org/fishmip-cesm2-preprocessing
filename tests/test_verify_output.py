@@ -91,3 +91,33 @@ def test_a_deep_check_finds_it(tmp_path):
 
     assert verdict == "bad"
     assert "range" in detail
+
+
+def _write_fixed(path, name="deptho", value=3000.0):
+    """A time-invariant field, as write_static produces."""
+    field = xr.DataArray(
+        np.full((2, 2), value),
+        dims=("lat", "lon"),
+        coords={"lat": [0.5, 1.5], "lon": [0.5, 1.5]},
+        attrs={"units": "m"},
+    )
+    xr.Dataset({name: field}).to_netcdf(path)
+
+
+def test_a_time_invariant_field_verifies_without_a_time_axis(tmp_path):
+    # deptho and thkcello have no time dimension. Checking time coverage on
+    # them would fail on a file that is perfectly correct.
+    path = tmp_path / "deptho.nc"
+    _write_fixed(path)
+
+    assert verify(path)[0] == "ok"
+
+
+def test_a_time_invariant_field_is_still_range_checked(tmp_path):
+    path = tmp_path / "deep.nc"
+    _write_fixed(path, value=50000.0)  # m; deeper than any ocean
+
+    verdict, detail = verify(path, deep=True)
+
+    assert verdict == "bad"
+    assert "range" in detail
