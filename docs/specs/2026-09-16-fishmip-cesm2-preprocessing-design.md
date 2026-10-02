@@ -378,9 +378,9 @@ distinguished by `source_id`, which is what a reader would expect — they are t
 scenario in two model configurations. Building the token from the internal label instead
 produced `ssp2-4p5-waccm-baseline`, which is not an experiment anyone can look up.
 
-The scenario tokens have no established FishMIP spelling — G6-1.5K-SAI and G6-1.5K-MCB
-postdate the protocol — so Kelsey Roberts and Colleen Petrik should confirm before
-anything is published. Renaming published files is worse than naming them correctly first,
+**Approved by Kelsey Roberts, 2026-10-02.** The scenario tokens had no established FishMIP
+spelling — G6-1.5K-SAI and G6-1.5K-MCB postdate the protocol — so this was a proposal
+until signed off. Renaming published files is worse than naming them correctly first,
 because other people's scripts will already point at the old names. The whole convention
 lives in `naming.py` so changing it is one edit.
 
