@@ -1,90 +1,129 @@
-# CESM2 → FishMIP preprocessing: five questions before we build
+# CESM2 → FishMIP preprocessing: status and open questions
 
-Draft message for Kelsey, Daniele, Haruki, and Colleen.
+Draft note for Kelsey, Daniele, Haruki and Colleen.
 
 ---
 
+Subject: FishMIP forcing ready — four questions before I publish
+
 Hi all,
 
-I've finished locating the CESM2 inputs for the FishMIP–GeoMIP analysis. Short version:
-both SRM scenarios and the WACCM baseline are on GLADE at NCAR with all eight MARBL
-biogeochemistry variables, already as monthly timeseries — no data acquisition needed.
-Kelsey pointed me at the CAM6 baseline for the MCB runs (`d651073`), so all four
-ensembles are accounted for.
+The CESM2 preprocessing is done. All four ensembles are regridded onto the FishMIP
+1° grid, unit-converted and renamed: **308 files, about 280 GB**, sitting on NCAR scratch
+and verified. Nothing is published yet, because a few things need your call first.
 
-None of this is in our Cloudflare R2 stores, incidentally — those have the physics but no
-biogeochemistry for any scenario, so this is a Derecho job.
+| Ensemble | Model | Members | Window |
+|---|---|---|---|
+| SSP2-4.5 baseline | CESM2-WACCM6 | 10 | 2035–2069 |
+| G6-1.5K-SAI | CESM2-WACCM6 | 3 | 2035–2069 |
+| SSP2-4.5 baseline | CESM2.1-CAM6 | 16 | 2035–2069 |
+| G6-1.5K-MCB | CESM2.1-CAM6 | 5 | 2035–2069 |
 
-| Scenario | Model | Members | Range | Status |
-|---|---|---|---|---|
-| SSP2-4.5 baseline | CESM2-WACCM6 | 10 | 2015-2100 | good |
-| G6-1.5K-SAI | CESM2-WACCM6 | 3 | 2035-2084 | good |
-| G6-1.5K-MCB | CESM2.1-CAM6 | 5 | 2035-2069 | good |
-| SSP2-4.5 baseline | CESM2.1-CAM6 | ? | ? | `d651073`, verifying |
+Nine variables per member — `intpp`, `thetao`, `tob`, `expc-bot`, `no3`, `phyc`,
+`phydiat`, `zooc`, zooplankton loss — plus `deptho` and `thkcello` once for the set.
+`zmeso` is not in CESM2 under any configuration, so the fallback in the plan applies.
 
-(Worth noting the G6-1.5K-SAI runs live inside the GDEX collection labelled
-`ARISE-SAI-1.5`, `d651059`, alongside the actual ARISE runs. Easy to grab the wrong one.)
+The regrid is first-order conservative and preserves the global integral to 1e-16: global
+NPP is 49.2–49.7 PgC/yr before and after, across all four ensembles.
 
-**1. Haruki - can you confirm the MCB baseline?** Kelsey pointed us at
-`/glade/campaign/collections/gdex/data/d651073/b.e21.BSSP245smbb.f09_g17*`, which is the
-right model configuration and forcing variant, and we're proceeding on that. Just want to
-confirm it's the intended control for the MCB ensemble, and ideally that the members line
-up with the branch points of `MCB-feedback-1DOF.001-005`.
+## Four things I need from you
 
-For the record, two things we ruled out on the way, in case anyone suggests them:
-`walkerl/SSP245smbb/...001_rerun` has all the right variables but only four years of data
-in two fragments; and the CESM2 Large Ensemble is SSP3-7.0, not SSP2-4.5.
+**1. Filenames — Kelsey and Colleen.** I need these signed off before anything goes to a
+public bucket, because renaming afterwards is worse than waiting: other people's scripts
+will already point at the old names. The pattern follows ISIMIP3b/FishMIP conventions:
 
-**2. SAI is WACCM, MCB is CAM6.** The two scenarios ran in different model
-configurations. Physically that makes sense - SAI needs a high top, MCB doesn't - but it
-means each scenario needs its own matched SSP2-4.5 baseline, which is why question 1
-matters. There's also a forcing-variant difference (`cmip6` vs `smbb`) layered on top.
-Does that match what you assumed?
+```
+cesm2-waccm6_g6-1p5k-sai_001_intpp_onedeg_global_monthly_2035_2069.nc
+cesm2-cam6_ssp245_001_intpp_onedeg_global_monthly_2035_2069.nc
+```
 
-**3. MCB ends in 2069.** SAI runs to 2084 and the protocol deployment window is
-2035–2085, so our three-way comparison is capped at 2035–2069 — we lose the last ~15
-years of SAI deployment. Do we cap everything at 2069, or run the three-way comparison
-to 2069 and carry SAI alone through 2084?
+The scenario tokens are my invention — G6-1.5K-SAI and G6-1.5K-MCB postdate the FishMIP
+protocol, so there is no established spelling. Both baselines share `ssp245` and are
+distinguished by model, which seemed right since they are the same scenario in two
+configurations. Say if you would rather they were something else.
 
-**4. `intpp` is coming from the wrong variables.** This one matters. The spec maps
-`intpp` to `POC_PROD_zint + DOC_prod_zint`, but that sum is the vertically integrated
-production of *detritus* — organic matter routed into the POC and DOC pools by mortality,
-grazing and aggregation — not photosynthesis.
+**2. Haruki — is `d651073` the right CAM6 baseline?** I am using
+`/glade/campaign/collections/gdex/data/d651073/b.e21.BSSP245smbb.f09_g17/` as the control
+for the MCB ensemble. Right compset and forcing variant, 16 members, continuous 2015–2100.
+I would like to know the members line up with the branch points of
+`MCB-feedback-1DOF.001-005`. (Two things I ruled out, in case they come up:
+`walkerl/SSP245smbb/...001_rerun` has only four years of data in two fragments, and the
+CESM2 Large Ensemble is SSP3-7.0 rather than SSP2-4.5.)
 
-Integrated globally it comes to **18.2 PgC/yr**, against an expected global NPP of 40–60.
-Using `photoC_TOT_zint` (total carbon fixation, and what CMIP6 CMORizes to `intpp` for
-CESM2) gives **49.3 PgC/yr**, consistent across all four ensembles to within 0.5.
+**3. Do the fish models need full-depth `thetao` and `no3`? — Colleen and Jerome.** Those
+two are 60-level fields and account for about two-thirds of the 280 GB. `tob` ships
+separately, so if FEISTY and BOATS want surface and seafloor temperature rather than a
+profile, dropping full-depth `thetao` would remove roughly 85 GB of data nobody reads.
+Easy either way — I would just rather not put it in a bucket that charges egress if it is
+not wanted.
 
-So as specified, BOATS would have been forced with about a third of the real primary
-production — and nothing in the output would have looked wrong: right shape, right
-per-cell magnitude, no errors. Only the global integral exposed it. I've switched to
-`photoC_TOT_zint`; shout if you disagree.
+**4. Colleen — two zooplankton questions.**
 
-Given that, the zooplankton rows below are worth a proper look rather than being assumed
-fine.
+- `zoo_loss_zint` is a *vertical integral*, so its units are `mol m-2 s-1`. The plan asks
+  for `mol m-3 s-1`, which cannot be right for an integral. I have gone with `mol m-2
+  s-1`; tell me if FEISTY wants something else, and what you would like the variable
+  called — there is no CMIP name for it, so I have used `zoo_loss` provisionally.
+- `Zmort2 = 0.003` in the plan is the MARBL-8P4Z mesozooplankton value. These runs use
+  standard CESM2 MARBL with a single bulk zooplankton class, where the defaults are
+  `z_mort_0 = 0.1/day`, `z_mort2_0 = 0.4 (1/day)/(mmol/m³)` and a loss exponent of 1.5 —
+  so the coefficient differs by more than two orders of magnitude. MARBL does not output
+  the linear and nonlinear terms separately. I can hand you total `zoo_loss_zint`, or
+  reconstruct the nonlinear part offline from `zooC` and `TEMP`. Which is more useful?
 
-**5. Smaller details in the variable table.**
-- `thkcello` is listed as `z_w_top - z_w_bot`, which comes out negative — should be the
-  other way round, and POP gives us `dz` directly anyway.
-- `no3` is listed in `molC m-3`; nitrate should be `mol m-3`.
-- Colleen — two zooplankton questions:
-  - `zoo_loss_zint` is a *vertical integral*, so `mol m-2 s-1`, but the spec asks for
-    `mol m-3 s-1`. We assume the spec units are just wrong, but which does FEISTY want?
-  - `Zmort2 = 0.003` is the MARBL-8P4Z mesozooplankton value and doesn't apply to these
-    runs. Standard CESM2 MARBL has one bulk zooplankton class with
-    `z_mort2_0 = 0.4 (1/day)/(mmol/m3)` and a loss exponent of 1.5 — so the coefficient is
-    off by over two orders of magnitude from what's in the spec. MARBL doesn't output the
-    linear and nonlinear terms separately. We can either hand you total `zoo_loss_zint`,
-    or reconstruct the nonlinear part offline from `zooC` and `TEMP`. Which is more
-    useful?
+## Five corrections to the variable table
 
-None of these block me now — all four ensembles are located, so I can start building and
-validating the pipeline. Questions 2 and 3 are the ones that shape how we frame the
-comparison, so they're worth settling before we're deep into analysis.
+Flagging these rather than changing them quietly. The first one matters.
 
-One decision made: preprocessed output goes to the public Cloudflare R2 bucket rather
-than Levante. I'll need the exact bucket name and prefix, and confirmation of the FishMIP
-file naming convention, before anything gets written there.
+**1. `intpp` comes from `photoC_TOT_zint`, not `POC_PROD_zint + DOC_prod_zint`.** That sum
+is the vertically integrated production of *detritus* — organic matter routed into the POC
+and DOC pools by mortality, grazing and aggregation — not photosynthesis. Integrated
+globally it comes to about **18 PgC/yr**, against an expected global NPP of 40–60.
+`photoC_TOT_zint` is total carbon fixation, and what CMIP6 CMORizes to `intpp` for CESM2.
+It gives **49.3 PgC/yr**, consistent across all four ensembles to within 0.5.
+
+As specified, BOATS would have run on roughly a third of the real primary production, and
+nothing in the output would have looked wrong — right shape, right per-cell magnitude, no
+errors. Only the global integral exposed it. I have switched to `photoC_TOT_zint`; shout
+if you disagree.
+
+**2. `thkcello`** is given as `z_w_top - z_w_bot`, which is negative. POP depths are
+positive downward, and `dz` gives layer thickness directly anyway.
+
+**3. `no3`** is listed in `molC m-3`; nitrate is a nitrogen pool, so `mol m-3`.
+
+**4 and 5** are the two zooplankton items above.
+
+## Three things worth knowing
+
+**`phyc`, `phydiat` and `zooc` are upper-ocean only.** MARBL writes the plankton tracers
+over the top 150 m (15 levels), not the full column. `no3` and `thetao` are full depth.
+This is a limit on the data, not a choice — but you should know it exists.
+
+**Small negative concentrations were clipped to zero.** MARBL's advection scheme leaves
+them in the raw output; they are numerical, not physical, and negative concentrations are
+not usable forcing. The amounts are tiny and consistent across all 34 members: `no3`
+0.002–0.003% of the field, `phyc` ~0.06%, `zooc` ~0.013%, and `phydiat` 0.28–0.34%.
+`phydiat` is the outlier by an order of magnitude, which fits — diatom blooms give the
+advection scheme the sharpest gradients to overshoot on. Temperature is never clipped.
+
+**Regridding damps extremes.** gx1v7 is finer than 1° near the equator, so area-averaging
+onto a regular grid smooths peaks while preserving the integral: `intpp` maxima fall from
+about 1.0e-5 to 6.3e-6, `phydiat` from 0.082 to 0.062. This is correct behaviour for a
+conservative regrid, but these fields are grid-scale averages rather than CESM2's own
+extremes, and it is worth knowing before anyone reads a maximum off them.
+
+## Two decisions already taken, for the record
+
+**SAI is WACCM, MCB is CAM6**, so each scenario is compared against its own matched
+baseline. This matters more than it sounds: in 2040, MCB sits 0.52 PgC/yr below the CAM6
+baseline but only 0.31 below the WACCM one. At that magnitude the pairing decides the
+answer.
+
+**The common window is 2035–2069.** MCB ends in 2069 while SAI runs to 2084, so the last
+~15 years of SAI deployment has no MCB counterpart. Happy to supply SAI through 2084
+separately if that is useful for a two-way comparison.
+
+Code and full write-up: https://github.com/johnorcutt/fishmip-cesm2-preprocessing
 
 Thanks,
 John
