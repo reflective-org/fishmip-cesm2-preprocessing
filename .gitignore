@@ -4,3 +4,9 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+# Outputs and generated grids: hundreds of GB, reproducible from the code.
+output/
+grids/
+logs/
+*.nc
+PET0.RegridWeightGen.Log
