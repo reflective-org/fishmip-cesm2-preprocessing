@@ -117,3 +117,20 @@ def test_the_gate_fails_if_any_single_check_fails():
     checks = validate_variable("thetao", thetao, ocean)
 
     assert not gate_passed(checks)
+
+
+def test_ice_shelf_water_is_accepted_as_physical():
+    # Seawater freezes near -1.9 degC at the surface but around -3.5 degC at
+    # 5000 m. Water formed against ice at depth keeps a potential temperature
+    # below the surface freezing point -- Ice Shelf Water, a real water mass in
+    # the Weddell and Ross Seas, and the coldest thing in a full-depth field.
+    thetao = xr.DataArray([-3.192, -2.5, 4.0], dims="cell")
+
+    assert check_range("thetao", thetao).passed
+
+
+def test_a_kelvin_mix_up_is_still_caught():
+    # Loosening the lower bound must not blind the check to what it is for.
+    thetao = xr.DataArray([271.0, 288.0], dims="cell")
+
+    assert not check_range("thetao", thetao).passed

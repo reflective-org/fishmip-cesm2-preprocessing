@@ -307,6 +307,19 @@ Clipping is **refused** for variables that may legitimately be negative. Sea wat
 permitted set is derived from the lower bound in `PLAUSIBLE_RANGES` rather than listed
 separately, so the two cannot drift apart.
 
+### Temperature bounds must allow Ice Shelf Water
+
+`thetao` and `tob` are bounded below at **−3.5 °C**, not at the surface freezing point.
+Seawater freezes near −1.9 °C at the surface but around −3.5 °C at 5000 m, and water
+formed in contact with ice at depth in the Weddell and Ross Seas retains a potential
+temperature below the surface freezing point. Measured minima across the written set run
+to −3.19 °C.
+
+An initial bound of −2.5 °C rejected 25 sound files on the first deep verification. The
+shallow check had passed them because it reads only the surface; the deep check reaches
+the bottom of the Southern Ocean, where the coldest water actually is. The bound still
+catches what it exists for — a Kelvin/Celsius slip lands near 270.
+
 ### Validation
 
 - Global integral of `intpp` and `expc-bot` preserved across regridding to within

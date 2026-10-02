@@ -22,8 +22,14 @@ class Check:
 # police plausible variation. Upper bounds carry the maximum measured in the
 # 2026-09-24 dry run (WACCM baseline, 2040, surface) so the headroom is visible.
 PLAUSIBLE_RANGES = {
-    "thetao": (-2.5, 40.0),  # degC; measured 32.0. A Kelvin slip lands at ~290.
-    "tob": (-2.5, 40.0),  # measured 32.5
+    # Seawater freezes near -1.9 degC at the surface but around -3.5 degC at
+    # 5000 m, and water formed against ice at depth keeps a potential
+    # temperature below the surface freezing point. That is Ice Shelf Water, and
+    # it is the coldest thing in a full-depth Southern Ocean field: measured
+    # minima here run to -3.19 degC. A bound of -2.5 rejected 25 perfectly good
+    # files. A Kelvin slip still lands at ~270 and is still caught.
+    "thetao": (-3.5, 40.0),  # degC; measured -3.19 to 35.8
+    "tob": (-3.5, 40.0),  # measured -2.13 to 32.8
     "intpp": (0.0, 1e-4),  # mol m-2 s-1; measured 6.0e-6
     "expc-bot": (0.0, 1e-4),  # measured 1.9e-6
     "zoo_loss": (0.0, 1e-4),  # measured 4.8e-7
