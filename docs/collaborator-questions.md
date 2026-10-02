@@ -123,6 +123,9 @@ answer.
 ~15 years of SAI deployment has no MCB counterpart. Happy to supply SAI through 2084
 separately if that is useful for a two-way comparison.
 
+How to download: see `docs/downloading.md` in the repository below — reads are public,
+so it is a plain HTTPS GET per file and filenames are predictable, nothing needs listing.
+
 Code and full write-up: https://github.com/reflective-org/fishmip-cesm2-preprocessing
 
 Thanks,

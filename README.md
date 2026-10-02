@@ -251,6 +251,12 @@ That is the only way to see corruption or bad values later in a file. A damaged
 file passed the shallow check and then failed on write with a decompression
 error, so the shallow check is a smoke test, not the gate.
 
+## Using the published data
+
+See [docs/downloading.md](docs/downloading.md). Reads are public: no credentials,
+no SDK, a plain HTTPS GET per file, and filenames are predictable so nothing
+needs listing.
+
 ## Publishing
 
 ```
