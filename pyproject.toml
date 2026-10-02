@@ -7,6 +7,10 @@ name = "fishmip-cesm2-preprocessing"
 version = "0.1.0"
 description = "Preprocess CESM2 POP2/MARBL ocean output into FishMIP forcing"
 requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+]
 dependencies = ["xarray", "numpy", "netcdf4", "scipy", "dask", "boto3"]
 
 [project.optional-dependencies]

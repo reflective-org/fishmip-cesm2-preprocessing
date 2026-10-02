@@ -286,3 +286,12 @@ python -m pytest tests/ -q
 ```
 
 No network or GLADE access needed — the tests build synthetic directory trees.
+
+## Licence
+
+Apache 2.0 — see [LICENSE](LICENSE).
+
+The CESM2 model output this code processes is produced by NCAR and collaborating
+institutions and carries its own terms; see
+[the design document](docs/specs/2026-09-16-fishmip-cesm2-preprocessing-design.md)
+for the provenance of each input.
