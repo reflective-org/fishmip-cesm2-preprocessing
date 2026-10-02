@@ -4,7 +4,7 @@ The files are public for reading. No credentials, no account, no SDK needed — 
 is a plain HTTPS GET.
 
 ```python
-BASE = "https://<public-r2-url>/fishmip"   # <-- fill in; see "The base URL" below
+BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 ```
 
 ## How files are named
@@ -39,7 +39,7 @@ The two time-invariant fields sit together and carry no scenario or member:
 from pathlib import Path
 import requests
 
-BASE = "https://<public-r2-url>/fishmip"
+BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 
 MODEL_OF = {
     "ssp245-waccm": "cesm2-waccm6",
@@ -91,7 +91,7 @@ print(xr.open_dataset(sai).attrs["history"])
 ## Shell
 
 ```bash
-BASE=https://<public-r2-url>/fishmip
+BASE=https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip
 
 curl -O "$BASE/g6-1p5k-mcb/cesm2-cam6_g6-1p5k-mcb_001_intpp_onedeg_global_monthly_2035_2069.nc"
 
@@ -113,8 +113,12 @@ done
   are preserved exactly but peaks are damped — gx1v7 is finer than 1° near the equator.
   Read maxima as 1° averages, not as CESM2's own.
 
-## The base URL
+## A quick check that a file is there
 
-R2 serves public reads from either an `r2.dev` subdomain or a custom domain, not from the
-S3 endpoint — that one needs credentials even for a public bucket. Fill in whichever is
-configured for `reflective-data-store`; the paths below it are exactly as shown.
+Reads are public, so a `HEAD` is enough to confirm a file exists and how large it is
+without downloading it:
+
+```bash
+curl -sI "$BASE/g6-1p5k-mcb/cesm2-cam6_g6-1p5k-mcb_001_intpp_onedeg_global_monthly_2035_2069.nc" \
+  | grep -i '^\(HTTP\|content-length\)'
+```
