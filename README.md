@@ -213,6 +213,19 @@ done:
 python -m fishmip_cesm.write_output --weights grids/... --out-dir "$OUT_DIR"
 ```
 
+### The time-invariant fields
+
+`deptho` and `thkcello` do not vary in time, and the ocean grid is identical for
+every member and scenario, so they are two files for the whole set rather than
+two per member:
+
+```
+python -m fishmip_cesm.write_static --weights grids/... --out-dir "$OUT_DIR" --write
+```
+
+A few megabytes against 280 GB, but FEISTY needs `deptho` and the project
+specification asks for both.
+
 ## Verifying what landed
 
 ```

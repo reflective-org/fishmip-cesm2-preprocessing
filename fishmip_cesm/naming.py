@@ -76,3 +76,21 @@ def object_key(scenario: str, filename: str) -> str:
     if "/" in filename or filename.startswith("."):
         raise ValueError(f"unsafe filename: {filename!r}")
     return f"{PREFIX}/{_token(scenario)}/{filename}"
+
+
+# Fields that do not vary in time and are identical for every member and
+# scenario, because the ocean grid is the same throughout.
+FIXED_VARIABLES = ("deptho", "thkcello")
+FIXED_PREFIX = "grid"
+
+
+def fixed_filename(variable: str) -> str:
+    """The published name of a time-invariant field.
+
+    No member and no time range: these are one file each for the whole set, not
+    one per member. A name implying otherwise would suggest 34 copies of
+    identical data.
+    """
+    if variable not in FIXED_VARIABLES:
+        raise ValueError(f"{variable} varies in time; use output_filename")
+    return f"cesm2_{_token(variable)}_{RESOLUTION}_{REGION}_fx.nc"

@@ -19,7 +19,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fishmip_cesm.naming import BUCKET, PREFIX
+from fishmip_cesm.naming import BUCKET, FIXED_PREFIX, FIXED_VARIABLES, PREFIX
 
 # <source_id>_<experiment_id>_<member>_<variable>_...
 _EXPERIMENT_FIELD = 1
@@ -53,7 +53,12 @@ def plan_upload(filename: str) -> str:
     withdraw once it has been published.
     """
     parts = filename.removesuffix(".nc").split("_")
-    if len(parts) < 9 or not filename.endswith(".nc"):
+    if not filename.endswith(".nc"):
+        raise ValueError(f"not a FishMIP forcing filename: {filename}")
+    # Time-invariant fields carry no scenario and live together under grid/.
+    if filename.endswith("_fx.nc") and any(v in parts for v in FIXED_VARIABLES):
+        return f"{PREFIX}/{FIXED_PREFIX}/{filename}"
+    if len(parts) < 9:
         raise ValueError(f"not a FishMIP forcing filename: {filename}")
     return f"{PREFIX}/{parts[_EXPERIMENT_FIELD]}/{filename}"
 

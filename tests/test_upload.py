@@ -47,3 +47,14 @@ def test_credentials_are_read_from_the_environment(monkeypatch):
     assert creds.endpoint == "https://account.r2.cloudflarestorage.com"
     # The secret must never appear in a repr that could reach a log.
     assert "secret" not in repr(creds)
+
+
+def test_a_time_invariant_field_goes_to_the_grid_prefix():
+    # deptho and thkcello carry no scenario, so parsing one as a scenario file
+    # would put it under a prefix that does not mean anything.
+    assert plan_upload("cesm2_deptho_onedeg_global_fx.nc") == (
+        "fishmip/grid/cesm2_deptho_onedeg_global_fx.nc"
+    )
+    assert plan_upload("cesm2_thkcello_onedeg_global_fx.nc") == (
+        "fishmip/grid/cesm2_thkcello_onedeg_global_fx.nc"
+    )

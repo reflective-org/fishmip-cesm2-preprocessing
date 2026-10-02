@@ -158,3 +158,16 @@ def centre_time(dataset: xr.Dataset) -> xr.Dataset:
     edge_dim = [d for d in bounds.dims if d != "time"][0]
     centred = bounds.astype("datetime64[ns]").mean(dim=edge_dim)
     return dataset.assign_coords(time=centred)
+
+
+def masked_thickness(dz: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
+    """Layer thickness on the POP grid, masked below the seafloor.
+
+    POP writes `dz` as a single column of nominal layer thicknesses, identical
+    everywhere. Broadcasting it across the grid and masking by `KMT` gives the
+    field FishMIP expects: a thickness wherever there is water, and nothing
+    where there is not. Writing a thickness below the seafloor would claim
+    water that is not there.
+    """
+    level = xr.DataArray(range(dz.sizes[dz.dims[0]]), dims=dz.dims[0])
+    return dz.where(level < kmt)

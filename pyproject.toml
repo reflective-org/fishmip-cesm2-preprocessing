@@ -20,6 +20,7 @@ fishmip-check-regrid = "fishmip_cesm.check_regrid:main"
 fishmip-dry-run = "fishmip_cesm.dry_run:main"
 fishmip-write-output = "fishmip_cesm.write_output:main"
 fishmip-verify-output = "fishmip_cesm.verify_output:main"
+fishmip-write-static = "fishmip_cesm.write_static:main"
 fishmip-upload = "fishmip_cesm.upload:main"
 
 [tool.setuptools]
