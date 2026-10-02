@@ -123,7 +123,7 @@ answer.
 ~15 years of SAI deployment has no MCB counterpart. Happy to supply SAI through 2084
 separately if that is useful for a two-way comparison.
 
-Code and full write-up: https://github.com/johnorcutt/fishmip-cesm2-preprocessing
+Code and full write-up: https://github.com/reflective-org/fishmip-cesm2-preprocessing
 
 Thanks,
 John
