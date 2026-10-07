@@ -253,9 +253,14 @@ error, so the shallow check is a smoke test, not the gate.
 
 ## Using the published data
 
-See [docs/downloading.md](docs/downloading.md). Reads are public: no credentials,
-no SDK, a plain HTTPS GET per file, and filenames are predictable so nothing
-needs listing.
+```bash
+curl -O https://raw.githubusercontent.com/reflective-org/fishmip-cesm2-preprocessing/main/scripts/download_fishmip.py
+python3 download_fishmip.py --list
+```
+
+Standard library only, resumable, and filterable by scenario, variable or
+member. See [docs/downloading.md](docs/downloading.md) for the naming scheme and
+for what to know before using the fields.
 
 ## Publishing
 

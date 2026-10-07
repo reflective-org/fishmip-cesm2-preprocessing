@@ -1,5 +1,22 @@
 # Downloading the FishMIP forcing
 
+## The quick way
+
+```bash
+curl -O https://raw.githubusercontent.com/reflective-org/fishmip-cesm2-preprocessing/main/scripts/download_fishmip.py
+
+python3 download_fishmip.py --list                      # see what there is
+python3 download_fishmip.py --variable intpp            # one variable, all 34 members
+python3 download_fishmip.py --scenario g6-1p5k-mcb      # one experiment
+python3 download_fishmip.py                             # everything, ~280 GB
+```
+
+Standard library only: no pip install, no credentials, no AWS tooling.
+Interrupting is safe — a re-run skips what is complete and resumes anything cut
+off partway.
+
+The rest of this page is for building your own requests.
+
 The files are public for reading. No credentials, no account, no SDK needed — each file
 is a plain HTTPS GET.
 

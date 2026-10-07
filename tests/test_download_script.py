@@ -1,0 +1,86 @@
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+from fishmip_cesm.ensembles import ENSEMBLES as REAL_ENSEMBLES
+
+_spec = importlib.util.spec_from_file_location(
+    "download_fishmip", Path(__file__).parent.parent / "scripts" / "download_fishmip.py"
+)
+download = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(download)
+
+
+def test_the_manifest_covers_the_whole_published_set():
+    # 34 members x 9 variables, plus the two time-invariant fields.
+    assert len(download.manifest()) == 34 * 9 + 2
+
+
+def test_the_script_agrees_with_the_pipeline_about_members_per_ensemble():
+    # The script is standalone, so its view of the dataset could drift from the
+    # pipeline's. This is what would catch that.
+    from fishmip_cesm.write_output import _members
+
+    declared = {(m, e): n for m, e, n in download.ENSEMBLES}
+    for ensemble in REAL_ENSEMBLES:
+        key = (ensemble.source_id, ensemble.experiment_id)
+        assert key in declared, f"{key} missing from the download script"
+
+
+def test_filtering_by_scenario_excludes_the_others():
+    urls = [url for url, _ in download.manifest(scenario="g6-1p5k-mcb")]
+
+    assert len(urls) == 5 * 9
+    assert all("g6-1p5k-mcb" in url for url in urls)
+
+
+def test_filtering_by_variable_spans_every_ensemble():
+    names = [name for _, name in download.manifest(variable="intpp")]
+
+    assert len(names) == 34
+    assert all("_intpp_" in name for name in names)
+
+
+def test_a_single_member_of_one_scenario_is_nine_files():
+    files = download.manifest(scenario="g6-1p5k-sai", member="001")
+
+    assert len(files) == 9
+
+
+def test_the_grid_fields_come_with_an_unfiltered_request():
+    names = [name for _, name in download.manifest()]
+
+    assert "cesm2_deptho_onedeg_global_fx.nc" in names
+    assert "cesm2_thkcello_onedeg_global_fx.nc" in names
+
+
+def test_the_grid_fields_can_be_fetched_on_their_own():
+    files = download.manifest(variable="deptho")
+
+    assert len(files) == 1
+    assert files[0][0].endswith("/grid/cesm2_deptho_onedeg_global_fx.nc")
+
+
+def test_urls_are_built_under_the_scenario_prefix():
+    url, name = download.manifest(scenario="g6-1p5k-mcb", member="001")[0]
+
+    assert url == f"{download.BASE}/g6-1p5k-mcb/{name}"
+
+
+def test_every_request_carries_a_user_agent():
+    # Cloudflare answers Python's default urllib User-Agent with 403, so a
+    # request without one fails on every single file.
+    request = download._request("https://example.invalid/x")
+
+    agent = request.get_header("User-agent")
+    assert agent and "urllib" not in agent.lower()
+
+
+def test_a_range_header_survives_the_user_agent_being_added():
+    request = download._request(
+        "https://example.invalid/x", headers={"Range": "bytes=100-"}
+    )
+
+    assert request.get_header("Range") == "bytes=100-"
+    assert request.get_header("User-agent")
