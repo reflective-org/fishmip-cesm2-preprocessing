@@ -203,8 +203,10 @@ zlib, so it roughly halves the write cost for files about 15% larger.
 **`HDF5_USE_FILE_LOCKING=FALSE` is set by the runners and matters.** Scratch is
 Lustre, HDF5 takes file locks by default, and locking on Lustre can block
 forever rather than fail. A run hung in state `S` for 38 hours with no output.
-Each member also runs under a `timeout` (`MEMBER_TIMEOUT`, default 3h), so a
+Each member also runs under a `timeout` (`MEMBER_TIMEOUT`, default 8h), so a
 hang is bounded and retried on the next run rather than stalling everything.
+Scenario members take about 45 minutes; historical and piControl are four to
+six hours, being 1980 and 2400 months against a scenario's 420.
 
 Progress is visible without reading logs -- a dry run reports what is already
 done:

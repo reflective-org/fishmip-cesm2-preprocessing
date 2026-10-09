@@ -57,10 +57,12 @@ run_one() {
     IFS='|' read -r ensemble member <<< "$1"
     echo "$(date +%T) >> ${ensemble} ${member}"
     status=0
-    # A member takes well under an hour; three is generous. Without this a
-    # single hung write stalls the whole run indefinitely, and resume makes
-    # killing and retrying cheap.
-    timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT:-3h}" \
+    # A scenario member takes about 45 minutes, but historical is 1980 months
+    # and piControl 2400 against a scenario's 420 -- four to six hours. The
+    # timeout is only here to bound a hang, which is indefinite, so it can be
+    # generous without losing its purpose. Three hours would have killed every
+    # historical and piControl member just short of finishing.
+    timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT:-8h}" \
         nice -n 19 python -m fishmip_cesm.write_output \
         --weights "${WEIGHTS}" \
         --out-dir "${OUT_DIR}" \

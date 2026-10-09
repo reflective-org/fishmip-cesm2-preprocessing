@@ -10,7 +10,7 @@
 #PBS -N fishmip-write
 #PBS -q main
 #PBS -l select=1:ncpus=128:mem=200GB
-#PBS -l walltime=04:00:00
+#PBS -l walltime=12:00:00
 #PBS -j oe
 #PBS -o logs/
 
