@@ -7,7 +7,8 @@ Exits non-zero if any ensemble is missing variables or has coverage gaps.
 
 import sys
 
-from fishmip_cesm.catalog import CaseReport, verify_ensemble
+from fishmip_cesm.catalog import CaseReport
+from fishmip_cesm.sources import ensemble_reports
 from fishmip_cesm.ensembles import ENSEMBLES, REQUIRED_VARIABLES
 
 
@@ -32,12 +33,7 @@ def main() -> int:
 
     failures = 0
     for ensemble in ENSEMBLES:
-        reports = verify_ensemble(
-            ensemble.root,
-            ensemble.case_glob,
-            REQUIRED_VARIABLES,
-            ensemble.window,
-        )
+        reports = ensemble_reports(ensemble, REQUIRED_VARIABLES)
         ok = sum(1 for r in reports if r.ok)
         status = "ok" if reports and ok == len(reports) else "PROBLEM"
         print(f"{ensemble.name} [{ensemble.model}] {_format_span(ensemble.window)}: "

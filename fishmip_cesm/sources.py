@@ -80,3 +80,39 @@ def member_labels(cases: list[str]) -> list[str]:
             "Narrow the case glob so each member has a distinct suffix."
         )
     return labels
+
+
+def ensemble_reports(ensemble, required_variables: list[str]) -> list:
+    """Coverage reports for every member, in either layout.
+
+    The writer and the input verifier have to agree about where a member's
+    files are. They did not: the writer learned about variable-first archives
+    and this did not, so the Large Ensemble looked empty.
+    """
+    from fishmip_cesm.catalog import CaseReport, find_coverage_gaps
+
+    reports = []
+    for case in member_cases(ensemble):
+        spans_by_variable = {}
+        for variable in required_variables:
+            spans = []
+            for path in variable_files(ensemble, case, variable):
+                parsed = parse_timeseries_filename(path.name)
+                if parsed:
+                    spans.append((parsed.start, parsed.end))
+            if spans:
+                spans_by_variable[variable] = spans
+
+        reports.append(
+            CaseReport(
+                case=case,
+                missing_variables=[
+                    v for v in required_variables if v not in spans_by_variable
+                ],
+                gaps={
+                    variable: find_coverage_gaps(spans, ensemble.window)
+                    for variable, spans in spans_by_variable.items()
+                },
+            )
+        )
+    return reports

@@ -128,3 +128,69 @@ def test_distinct_labels_pass_through():
             "b.e21.BWHIST.f09_g17.CMIP6-historical-WACCM.002",
         ]
     ) == ["001", "002"]
+
+
+def test_reports_cover_a_case_layout_ensemble(tmp_path):
+    from fishmip_cesm.sources import ensemble_reports
+
+    ensemble = _case_layout(tmp_path)
+    ensemble.window = ((1850, 1), (2014, 12))
+
+    reports = ensemble_reports(ensemble, ["TEMP", "NO3"])
+
+    assert len(reports) == 2
+    assert all(r.ok for r in reports)
+
+
+def test_reports_cover_a_variable_layout_ensemble(tmp_path):
+    # The input verifier has to understand both layouts, not just the writer.
+    from fishmip_cesm.sources import ensemble_reports
+
+    ensemble = _variable_layout(tmp_path)
+    ensemble.window = ((1850, 1), (1869, 12))
+
+    reports = ensemble_reports(ensemble, ["TEMP", "NO3"])
+
+    assert len(reports) == 1
+    assert reports[0].case == "b.e21.BHISTsmbb.f09_g17.LE2-1301.011"
+    assert reports[0].ok
+
+
+def test_reports_name_a_variable_missing_from_a_variable_layout(tmp_path):
+    from fishmip_cesm.sources import ensemble_reports
+
+    ensemble = _variable_layout(tmp_path)
+    ensemble.window = ((1850, 1), (1869, 12))
+
+    reports = ensemble_reports(ensemble, ["TEMP", "spC"])
+
+    assert reports[0].missing_variables == ["spC"]
+
+
+def test_reports_find_a_gap_in_a_variable_layout(tmp_path):
+    from fishmip_cesm.sources import ensemble_reports
+
+    ensemble = _variable_layout(tmp_path)
+    ensemble.window = ((1850, 1), (1889, 12))  # two decades beyond what exists
+
+    reports = ensemble_reports(ensemble, ["TEMP"])
+
+    assert not reports[0].ok
+    assert reports[0].gaps["TEMP"]
+
+
+def test_the_writer_and_the_verifier_resolve_the_same_members(tmp_path):
+    # These drifted once: the writer learned about variable-first archives and
+    # the verifier did not, so a whole ensemble read as empty.
+    from fishmip_cesm.sources import ensemble_reports
+
+    for build in (_case_layout, _variable_layout):
+        root = tmp_path / build.__name__
+        root.mkdir()
+        ensemble = build(root)
+        ensemble.window = ((1850, 1), (1859, 12))
+
+        from_writer = member_cases(ensemble)
+        from_verifier = [r.case for r in ensemble_reports(ensemble, ["TEMP"])]
+
+        assert from_writer == from_verifier
