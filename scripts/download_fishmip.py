@@ -36,6 +36,7 @@ ENSEMBLES = [
     ("cesm2-cam6", "ssp245", 16, 2035, 2069),  # baseline for MCB
     ("cesm2-cam6", "g6-1p5k-mcb", 5, 2035, 2069),
     ("cesm2-waccm6", "historical", 3, 1850, 2014),
+    ("cesm2-cam6", "historical", 1, 1850, 2014),
     ("cesm2-waccm6", "picontrol", 1, 300, 499),
     ("cesm2-cam6", "picontrol", 1, 1801, 2000),
 ]

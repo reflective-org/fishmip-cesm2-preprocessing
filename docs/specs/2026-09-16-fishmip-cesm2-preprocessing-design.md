@@ -44,6 +44,35 @@ Identified by Kelsey Roberts, 2026-09-16. Correct model configuration (CAM6) and
 variant (`smbb`) to pair with MCB; confirmation from Haruki Hirasawa that it is the
 intended control is still worth having, but is not blocking.
 
+### Historical and piControl, added 2026-10-09
+
+Four further ensembles, requested by Kelsey Roberts with paths from Daniele Visioni:
+
+| Ensemble | Members | Window | Months |
+|---|---|---|---|
+| historical (WACCM) | 3 | 1850–2014 | 1980 |
+| historical (CAM6) | 1 | 1850–2014 | 1980 |
+| piControl (WACCM) | 1 | model years 0300–0499 | 2400 |
+| piControl (CAM6) | 1 | model years 1801–2000 | 2400 |
+
+Three decisions behind those rows:
+
+**The last 200 years of each piControl** (Daniele Visioni, 2026-10-09). The WACCM control
+runs model years 1–499 and the CAM6 one 1–2000, so a slice was unavoidable — the full
+records are several TB. These are raw CESM timeseries rather than CMORized output, so they
+carry no `branch_time` metadata and there is no way to recover the segment the historical
+runs departed from; the last 200 years is instead the most stable part of each control.
+
+**One CESM2-LE member for the CAM6 historical** ("one ensemble member is fine"). Pinned by
+name to `b.e21.BHISTsmbb.f09_g17.LE2-1011.001` rather than globbed, because Large Ensemble
+cases carry two numbers and `LE2-1011.001` and `LE2-1031.002` would both match a looser
+pattern while claiming different labels.
+
+**smbb rather than cmip6** for that member. The MCB runs and the CAM6 baseline are both
+`BSSP245smbb`, and the two variants differ in biomass-burning forcing from 1990. A `cmip6`
+historical would leave a forcing discontinuity at the 2014/2015 join — small, and later
+indistinguishable from signal.
+
 ### Notes on source selection
 
 - **G6-1.5K-SAI is inside the GDEX dataset labelled `ARISE-SAI-1.5`** (`d651059`).

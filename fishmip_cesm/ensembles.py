@@ -13,6 +13,11 @@ from fishmip_cesm.catalog import Span
 GDEX = Path("/glade/campaign/collections/gdex/data")
 CAMPAIGN = Path("/glade/campaign/cgd/amp/walkerl")
 CMIP6 = Path("/glade/campaign/collections/cmip/CMIP6/timeseries-cmip6")
+# The Large Ensemble stores one directory per variable rather than per member,
+# so its root is the month_1 directory itself. See sources.py.
+CESM2_LE = Path(
+    "/glade/campaign/cesm/collections/CESM2-LE/timeseries/ocn/proc/tseries/month_1"
+)
 
 # Historical is the CMIP6 span. piControl is a model-year control with no
 # calendar: the WACCM run covers years 1-499 and the CAM6 one 1-2000, and the
@@ -134,6 +139,25 @@ ENSEMBLES = [
         root=CMIP6,
         case_glob=f"b.e21.B1850.f09_g17.CMIP6-piControl.{_MEMBER}",
         window=CAM6_PICONTROL_WINDOW,
+    ),
+    Ensemble(
+        name="historical (CAM6)",
+        model="CESM2.1-CAM6",
+        source_id="cesm2-cam6",
+        experiment_id="historical",
+        # smbb, not cmip6: the MCB runs and the CAM6 baseline are both
+        # BSSP245smbb, and the two variants differ in biomass-burning forcing
+        # from 1990. A cmip6 historical would leave a forcing discontinuity at
+        # the 2014/2015 join -- small, and later indistinguishable from signal.
+        #
+        # One member, pinned by name (Dan Visioni, 2026-10-09: "one ensemble
+        # member is fine"). Pinning rather than globbing keeps the member label
+        # unambiguous: LE2-1011.001 and LE2-1031.002 would both be plausible
+        # matches for a looser pattern.
+        root=CESM2_LE,
+        case_glob="b.e21.BHISTsmbb.f09_g17.LE2-1011.001",
+        window=HISTORICAL_WINDOW,
+        layout="variable",
     ),
     Ensemble(
         name="G6-1.5K-MCB",

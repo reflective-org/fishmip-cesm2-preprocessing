@@ -46,3 +46,20 @@ def test_a_filename_carries_its_own_window_back():
 
 def test_a_name_without_a_window_returns_none():
     assert window_from_filename("cesm2_deptho_onedeg_global_fx.nc") is None
+
+
+def test_the_large_ensemble_entry_is_variable_layout_and_pins_one_case():
+    # Its archive is variable-first, and a looser glob would match several
+    # members whose three-digit labels collide.
+    le = next(e for e in ENSEMBLES if e.layout == "variable")
+
+    assert le.experiment_id == "historical"
+    assert le.source_id == "cesm2-cam6"
+    assert "smbb" in le.case_glob
+    assert "*" not in le.case_glob and "[" not in le.case_glob
+
+
+def test_every_other_ensemble_is_case_layout():
+    variable_layout = [e for e in ENSEMBLES if e.layout == "variable"]
+
+    assert len(variable_layout) == 1
