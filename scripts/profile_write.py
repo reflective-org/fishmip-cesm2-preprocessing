@@ -18,7 +18,8 @@ from fishmip_cesm.ensembles import ENSEMBLES
 from fishmip_cesm.output import unflatten
 from fishmip_cesm.regrid import regrid_variable
 from fishmip_cesm.transform import centre_time, convert_variable, depth_dim
-from fishmip_cesm.write_output import COMPRESSION, _members, _to_cells, _window_paths
+from fishmip_cesm.sources import member_cases
+from fishmip_cesm.write_output import COMPRESSION, _to_cells, _window_paths
 
 CESM_OF = {"thetao": "TEMP", "intpp": "photoC_TOT_zint", "no3": "NO3"}
 
@@ -41,10 +42,10 @@ def main() -> int:
     n_target = weights.sizes["n_b"]
 
     ensemble = next(e for e in ENSEMBLES if args.ensemble.lower() in e.name.lower())
-    month_1 = _members(ensemble)[0]
+    case = member_cases(ensemble)[0]
     cesm = CESM_OF[args.variable]
     window = ((args.year, 1), (args.year, 12))
-    paths = _window_paths(month_1, cesm, window)
+    paths = _window_paths(ensemble, case, cesm, window)
 
     probe = xr.open_dataset(paths[0], decode_timedelta=True)[cesm]
     depth = depth_dim(probe)

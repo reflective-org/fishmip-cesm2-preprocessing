@@ -24,6 +24,7 @@ import xarray as xr
 from fishmip_cesm.catalog import parse_timeseries_filename
 from fishmip_cesm.chunking import time_chunk
 from fishmip_cesm.ensembles import ENSEMBLES, months_in
+from fishmip_cesm.sources import member_cases, member_labels, variable_files
 from fishmip_cesm.naming import BUCKET
 from fishmip_cesm.output import to_fishmip_dataset, unflatten
 from fishmip_cesm.plan import plan_output
@@ -125,34 +126,20 @@ def _fishmip_name(cesm_name: str) -> str:
     return CONVERSIONS[cesm_name][0]
 
 
-def _members(ensemble) -> list[Path]:
-    found = []
-    for case_dir in sorted(ensemble.root.glob(ensemble.case_glob)):
-        month_1 = case_dir / "ocn" / "proc" / "tseries" / "month_1"
-        if month_1.is_dir():
-            found.append(month_1)
-    return found
-
-
-def _member_label(month_1: Path) -> str:
-    """The three-digit member suffix from the case directory name."""
-    return month_1.parents[3].name.rsplit(".", 1)[-1]
-
-
-def _window_paths(month_1: Path, variable: str, window) -> list[Path]:
+def _window_paths(ensemble, case: str, variable: str, window) -> list[Path]:
     """The timeseries chunks covering the window, without opening any of them."""
     (start_year, _), (end_year, _) = window
-    paths = []
-    for path in sorted(month_1.glob(f"*.pop.h.{variable}.*.nc")):
+    covering = []
+    for path in variable_files(ensemble, case, variable):
         parsed = parse_timeseries_filename(path.name)
         if parsed and parsed.start[0] <= end_year and parsed.end[0] >= start_year:
-            paths.append(path)
-    return paths
+            covering.append(path)
+    return covering
 
 
-def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
+def _open_window(ensemble, case: str, variable: str, window) -> xr.DataArray | None:
     """Concatenate whichever timeseries chunks cover the analysis window."""
-    paths = _window_paths(month_1, variable, window)
+    paths = _window_paths(ensemble, case, variable, window)
     if not paths:
         return None
     # Chunk along time only -- the regrid needs the horizontal axes whole --
@@ -171,6 +158,11 @@ def _open_window(month_1: Path, variable: str, window) -> xr.DataArray | None:
     # interval, so slicing the raw stamps shifts every month by one and drops
     # the last month of the window.
     return subset_to_window(centre_time(dataset)[variable], window)
+
+
+def _grid_file(ensemble, case: str) -> Path:
+    """Any TEMP chunk: POP's static grid fields ride along in all of them."""
+    return variable_files(ensemble, case, "TEMP")[0]
 
 
 def _to_cells(field: xr.DataArray) -> xr.DataArray:
@@ -348,8 +340,8 @@ def main() -> int:
     total_gb = 0.0
     failures = 0
     for ensemble in selected:
-        for month_1 in _members(ensemble):
-            member = _member_label(month_1)
+        cases = member_cases(ensemble)
+        for case, member in zip(cases, member_labels(cases)):
             if args.member and member != args.member:
                 continue
             print(f"\n{ensemble.name} member {member}")
@@ -361,20 +353,20 @@ def main() -> int:
                 # A dry run reads directory listings only. Nothing is opened,
                 # decoded or held, so it costs neither time nor memory.
                 for cesm_name in DIRECT_SOURCES:
-                    if not _window_paths(month_1, cesm_name, ensemble.window):
+                    if not _window_paths(ensemble, case, cesm_name, ensemble.window):
                         print(f"  {cesm_name}: not found")
                         failures += 1
                         continue
                     work.append((_fishmip_name(cesm_name), cesm_name, None))
                 work.append(("tob", "TEMP", None))
             else:
-                temperature = _open_window(month_1, "TEMP", ensemble.window)
+                temperature = _open_window(ensemble, case, "TEMP", ensemble.window)
                 if temperature is None:
                     print("  no TEMP, skipping")
                     failures += 1
                     continue
                 grid = xr.open_dataset(
-                    sorted(month_1.glob("*.pop.h.TEMP.*.nc"))[0], decode_timedelta=True
+                    _grid_file(ensemble, case), decode_timedelta=True
                 )
                 kmt = grid["KMT"]
                 ocean = (
@@ -391,7 +383,7 @@ def main() -> int:
                     raw = (
                         temperature
                         if cesm_name == "TEMP"
-                        else _open_window(month_1, cesm_name, ensemble.window)
+                        else _open_window(ensemble, case, cesm_name, ensemble.window)
                     )
                     if raw is None:
                         print(f"  {cesm_name}: not found, skipping")

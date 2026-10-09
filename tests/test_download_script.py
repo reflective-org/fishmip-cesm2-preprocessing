@@ -20,8 +20,6 @@ def test_the_manifest_covers_the_whole_published_set():
 def test_the_script_agrees_with_the_pipeline_about_members_per_ensemble():
     # The script is standalone, so its view of the dataset could drift from the
     # pipeline's. This is what would catch that.
-    from fishmip_cesm.write_output import _members
-
     declared = {(m, e): n for m, e, n, _, _ in download.ENSEMBLES}
     for ensemble in REAL_ENSEMBLES:
         key = (ensemble.source_id, ensemble.experiment_id)

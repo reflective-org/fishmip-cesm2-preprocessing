@@ -74,6 +74,10 @@ class Ensemble:
     #: Every ensemble states its own span. Historical is 1850-2014 and
     #: piControl is a model-year control, so no single window covers the set.
     window: Span = ANALYSIS_WINDOW
+    #: "case" -- one directory per member, holding all its variables.
+    #: "variable" -- one directory per variable, holding all members, which is
+    #: how the CESM2 Large Ensemble is stored. See sources.py.
+    layout: str = "case"
 
 
 ENSEMBLES = [

@@ -5,13 +5,13 @@ writes every variable for one member.
 """
 
 from fishmip_cesm.ensembles import ENSEMBLES
-from fishmip_cesm.write_output import _member_label, _members
+from fishmip_cesm.sources import member_cases, member_labels
 
 
 def main() -> int:
     for ensemble in ENSEMBLES:
-        for month_1 in _members(ensemble):
-            print(f"{ensemble.name}|{_member_label(month_1)}")
+        for label in member_labels(member_cases(ensemble)):
+            print(f"{ensemble.name}|{label}")
     return 0
 
 

@@ -24,19 +24,14 @@ from fishmip_cesm.output import to_fishmip_dataset, unflatten
 from fishmip_cesm.regrid import regrid_variable
 from fishmip_cesm.transform import convert_variable, masked_thickness
 from fishmip_cesm.validate import check_range, check_units, gate_passed
-from fishmip_cesm.write_output import (
-    COMPRESSION,
-    _members,
-    _to_cells,
-    compression,
-)
+from fishmip_cesm.sources import member_cases, variable_files
+from fishmip_cesm.write_output import COMPRESSION, _to_cells, compression
 
 
-def _grid_of(month_1: Path) -> xr.Dataset:
+def _grid_of(ensemble, case: str) -> xr.Dataset:
     """POP's static grid fields, which ride along in every history file."""
-    return xr.open_dataset(
-        sorted(month_1.glob("*.pop.h.TEMP.*.nc"))[0], decode_timedelta=True
-    )
+    return xr.open_dataset(variable_files(ensemble, case, "TEMP")[0],
+                           decode_timedelta=True)
 
 
 def build_fixed_fields(grid: xr.Dataset, weights, n_target: int) -> dict:
@@ -69,15 +64,16 @@ def main() -> int:
     weights = xr.open_dataset(args.weights)
     n_target = weights.sizes["n_b"]
 
-    month_1 = next(
-        (m for e in ENSEMBLES for m in _members(e)), None
+    source = next(
+        ((e, c) for e in ENSEMBLES for c in member_cases(e)[:1]), None
     )
-    if month_1 is None:
+    if source is None:
         print("no member found to take the grid from")
         return 2
-    print(f"grid from {month_1}\n")
+    ensemble, case = source
+    print(f"grid from {ensemble.name} {case}\n")
 
-    fields = build_fixed_fields(_grid_of(month_1), weights, n_target)
+    fields = build_fixed_fields(_grid_of(ensemble, case), weights, n_target)
 
     failures = 0
     for name, field in fields.items():
