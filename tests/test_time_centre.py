@@ -44,3 +44,42 @@ def test_centring_refuses_a_dataset_with_no_bounds():
 
     with pytest.raises(ValueError, match="bounds"):
         centre_time(naked)
+
+
+def _model_year_dataset():
+    """piControl: a 365-day calendar starting at model year 1.
+
+    datetime64 cannot represent years before 1678, so xarray decodes these to
+    cftime objects. Anything that casts to datetime64 fails here.
+    """
+    import cftime
+
+    edges = [
+        cftime.DatetimeNoLeap(1, 1, 1),
+        cftime.DatetimeNoLeap(1, 2, 1),
+        cftime.DatetimeNoLeap(1, 3, 1),
+    ]
+    bounds = np.array([[edges[0], edges[1]], [edges[1], edges[2]]], dtype=object)
+    return xr.Dataset(
+        {
+            "time_bound": (("time", "d2"), bounds),
+            "TEMP": ("time", [1.0, 2.0]),
+        },
+        coords={"time": np.array(edges[1:], dtype=object)},
+    )
+
+
+def test_centres_a_model_year_calendar_outside_datetime64_range():
+    centred = centre_time(_model_year_dataset())
+
+    # January's mean must read as January of model year 1, not 1 February.
+    first = centred.time.values[0]
+    assert (first.year, first.month) == (1, 1)
+    second = centred.time.values[1]
+    assert (second.year, second.month) == (1, 2)
+
+
+def test_model_year_centring_leaves_the_data_alone():
+    centred = centre_time(_model_year_dataset())
+
+    np.testing.assert_array_equal(centred["TEMP"].values, [1.0, 2.0])

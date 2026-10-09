@@ -207,8 +207,10 @@ def check_time_coverage(field: xr.DataArray, window) -> Check:
     found = len(times)
     first = str(times[0])[:7]
     last = str(times[-1])[:7]
-    wanted_first = f"{start_year}-{start_month:02d}"
-    wanted_last = f"{end_year}-{end_month:02d}"
+    # Four-digit years: a cftime model-year stamp prints as "0335-01", and
+    # comparing it against "335-01" would fail a window that is exactly right.
+    wanted_first = f"{start_year:04d}-{start_month:02d}"
+    wanted_last = f"{end_year:04d}-{end_month:02d}"
 
     passed = found == expected and first == wanted_first and last == wanted_last
     return Check(

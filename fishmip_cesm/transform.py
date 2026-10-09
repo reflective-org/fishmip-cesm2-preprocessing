@@ -105,10 +105,12 @@ def subset_to_window(data, window):
     means mid-month. It also works for both numpy and cftime axes.
     """
     (start_year, start_month), (end_year, end_month) = window
+    # Four-digit years: cftime parses "0335-01" but not "335-01", and piControl
+    # model years are three digits or fewer.
     return data.sel(
         time=slice(
-            f"{start_year}-{start_month:02d}",
-            f"{end_year}-{end_month:02d}",
+            f"{start_year:04d}-{start_month:02d}",
+            f"{end_year:04d}-{end_month:02d}",
         )
     )
 
@@ -156,8 +158,36 @@ def centre_time(dataset: xr.Dataset) -> xr.Dataset:
 
     bounds = dataset[name]
     edge_dim = [d for d in bounds.dims if d != "time"][0]
-    centred = bounds.astype("datetime64[ns]").mean(dim=edge_dim)
+
+    lower = bounds.isel({edge_dim: 0})
+    upper = bounds.isel({edge_dim: 1})
+    centred = xr.DataArray(
+        _midpoint(lower.values, upper.values), dims=lower.dims, name="time"
+    )
     return dataset.assign_coords(time=centred)
+
+
+def _midpoint(lower, upper):
+    """Halfway between two time arrays, whatever calendar they are on.
+
+    piControl runs on a 365-day calendar from model year 1, which datetime64
+    cannot represent -- its range starts in 1678 -- so xarray decodes it to
+    cftime objects. Those cannot be cast to datetime64, averaged, or added to a
+    timedelta64, so each case is converted to a number, halved, and converted
+    back.
+    """
+    if lower.dtype == object:  # cftime, i.e. a model-year or non-standard calendar
+        import cftime
+
+        calendar = lower.flat[0].calendar
+        units = "days since 0001-01-01"
+        start = cftime.date2num(lower, units, calendar)
+        end = cftime.date2num(upper, units, calendar)
+        return cftime.num2date((start + end) / 2, units, calendar)
+
+    start = lower.astype("datetime64[ns]").astype("int64")
+    end = upper.astype("datetime64[ns]").astype("int64")
+    return (start + (end - start) // 2).astype("datetime64[ns]")
 
 
 def masked_thickness(dz: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:

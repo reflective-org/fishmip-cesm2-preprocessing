@@ -307,6 +307,23 @@ Clipping is **refused** for variables that may legitimately be negative. Sea wat
 permitted set is derived from the lower bound in `PLAUSIBLE_RANGES` rather than listed
 separately, so the two cannot drift apart.
 
+### piControl runs on model years, not a calendar
+
+POP writes piControl with `calendar = "All years have exactly 365 days"` and a time axis
+beginning at model year 1. `datetime64` cannot represent years before 1678, so xarray
+decodes these to `cftime` objects, and three things in the pipeline assumed otherwise:
+
+- `centre_time` cast the averaging bounds to `datetime64[ns]`, which fails outright on
+  cftime. The midpoint is now computed by converting to a number, halving and converting
+  back, which works for either.
+- `subset_to_window` built a slice bound of `"335-01"`. cftime parses `"0335-01"` and
+  rejects the unpadded form.
+- `check_time_coverage` compared a stamp printed as `"0335-01"` against an unpadded
+  `"335-01"`, and would have failed a window that was exactly right.
+
+None of these could surface before, because every run processed so far sits inside
+datetime64's range.
+
 ### Temperature bounds must allow Ice Shelf Water
 
 `thetao` and `tob` are bounded below at **−3.5 °C**, not at the surface freezing point.
