@@ -24,14 +24,23 @@ from pathlib import Path
 
 BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 
+# model, experiment, members, first year, last year.
+#
 # Each SRM scenario must be compared against the baseline that shares its
 # model. Both baselines are ssp245 and are told apart by the model token.
+# piControl carries model years rather than calendar years, and its files are
+# named with the same four-digit padding the time axis uses.
 ENSEMBLES = [
-    ("cesm2-waccm6", "ssp245", 10),  # baseline for SAI
-    ("cesm2-waccm6", "g6-1p5k-sai", 3),
-    ("cesm2-cam6", "ssp245", 16),  # baseline for MCB
-    ("cesm2-cam6", "g6-1p5k-mcb", 5),
+    ("cesm2-waccm6", "ssp245", 10, 2035, 2069),  # baseline for SAI
+    ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2069),
+    ("cesm2-cam6", "ssp245", 16, 2035, 2069),  # baseline for MCB
+    ("cesm2-cam6", "g6-1p5k-mcb", 5, 2035, 2069),
+    ("cesm2-waccm6", "historical", 3, 1850, 2014),
+    ("cesm2-waccm6", "picontrol", 1, 300, 499),
+    ("cesm2-cam6", "picontrol", 1, 1801, 2000),
 ]
+
+SCENARIOS = sorted({experiment for _, experiment, _, _, _ in ENSEMBLES})
 
 VARIABLES = [
     "intpp",  # primary production
@@ -67,7 +76,7 @@ def _request(url: str, **kwargs) -> urllib.request.Request:
 def manifest(scenario=None, variable=None, member=None):
     """Every published file, or the subset asked for. Returns (url, filename)."""
     wanted = []
-    for model, experiment, members in ENSEMBLES:
+    for model, experiment, members, first, last in ENSEMBLES:
         if scenario and experiment != scenario:
             continue
         for index in range(1, members + 1):
@@ -79,7 +88,7 @@ def manifest(scenario=None, variable=None, member=None):
                     continue
                 filename = (
                     f"{model}_{experiment}_{number}_{name}"
-                    "_onedeg_global_monthly_2035_2069.nc"
+                    f"_onedeg_global_monthly_{first:04d}_{last:04d}.nc"
                 )
                 wanted.append((f"{BASE}/{experiment}/{filename}", filename))
 
@@ -137,7 +146,7 @@ def fetch(url: str, target: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out-dir", type=Path, default=Path("fishmip-forcing"))
-    parser.add_argument("--scenario", choices=["ssp245", "g6-1p5k-sai", "g6-1p5k-mcb"])
+    parser.add_argument("--scenario", choices=SCENARIOS)
     parser.add_argument("--variable", choices=VARIABLES + FIXED)
     parser.add_argument("--member", help="a single member, e.g. 001")
     parser.add_argument(

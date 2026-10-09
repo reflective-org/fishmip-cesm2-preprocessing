@@ -12,6 +12,15 @@ from fishmip_cesm.catalog import Span
 
 GDEX = Path("/glade/campaign/collections/gdex/data")
 CAMPAIGN = Path("/glade/campaign/cgd/amp/walkerl")
+CMIP6 = Path("/glade/campaign/collections/cmip/CMIP6/timeseries-cmip6")
+
+# Historical is the CMIP6 span. piControl is a model-year control with no
+# calendar: the WACCM run covers years 1-499 and the CAM6 one 1-2000, and the
+# last 200 years of each were requested (Dan Visioni, 2026-10-09) -- long
+# enough to be useful and far enough from spin-up to be stable.
+HISTORICAL_WINDOW: Span = ((1850, 1), (2014, 12))
+WACCM_PICONTROL_WINDOW: Span = ((300, 1), (499, 12))
+CAM6_PICONTROL_WINDOW: Span = ((1801, 1), (2000, 12))
 
 # MCB ends 2069 while SAI runs to 2084, so the three-way comparison caps here.
 # This is the scenario window; historical and piControl carry their own.
@@ -94,6 +103,33 @@ ENSEMBLES = [
         # Case directories nest inside a container directory of the same name.
         root=GDEX / "d651073" / "b.e21.BSSP245smbb.f09_g17",
         case_glob=f"b.e21.BSSP245smbb.f09_g17.{_MEMBER}",
+    ),
+    Ensemble(
+        name="historical (WACCM)",
+        model="CESM2-WACCM6",
+        source_id="cesm2-waccm6",
+        experiment_id="historical",
+        root=CMIP6,
+        case_glob=f"b.e21.BWHIST.f09_g17.CMIP6-historical-WACCM.{_MEMBER}",
+        window=HISTORICAL_WINDOW,
+    ),
+    Ensemble(
+        name="piControl (WACCM)",
+        model="CESM2-WACCM6",
+        source_id="cesm2-waccm6",
+        experiment_id="picontrol",
+        root=CMIP6,
+        case_glob=f"b.e21.BW1850.f09_g17.CMIP6-piControl.{_MEMBER}",
+        window=WACCM_PICONTROL_WINDOW,
+    ),
+    Ensemble(
+        name="piControl (CAM6)",
+        model="CESM2.1-CAM6",
+        source_id="cesm2-cam6",
+        experiment_id="picontrol",
+        root=CMIP6,
+        case_glob=f"b.e21.B1850.f09_g17.CMIP6-piControl.{_MEMBER}",
+        window=CAM6_PICONTROL_WINDOW,
     ),
     Ensemble(
         name="G6-1.5K-MCB",

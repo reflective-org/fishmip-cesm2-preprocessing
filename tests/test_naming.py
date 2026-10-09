@@ -46,3 +46,33 @@ def test_object_key_sits_under_the_fishmip_prefix():
 def test_object_key_refuses_a_path_that_would_escape_the_prefix():
     with pytest.raises(ValueError):
         object_key(scenario="G6-1.5K-MCB", filename="../../etc/passwd")
+
+
+def test_model_years_are_padded_to_four_digits():
+    # piControl years are three digits or fewer. Unpadded they sort wrongly
+    # against four-digit years and do not match the cftime stamps in the file.
+    name = output_filename(
+        model="cesm2-waccm6",
+        scenario="picontrol",
+        member="001",
+        variable="intpp",
+        start_year=300,
+        end_year=499,
+    )
+
+    assert name.endswith("_0300_0499.nc")
+
+
+def test_a_padded_window_reads_back_correctly():
+    from fishmip_cesm.naming import window_from_filename
+
+    name = output_filename(
+        model="cesm2-waccm6",
+        scenario="picontrol",
+        member="001",
+        variable="intpp",
+        start_year=300,
+        end_year=499,
+    )
+
+    assert window_from_filename(name) == ((300, 1), (499, 12))

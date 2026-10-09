@@ -61,8 +61,8 @@ def output_filename(
         RESOLUTION,
         REGION,
         FREQUENCY,
-        str(start_year),
-        str(end_year),
+        f"{start_year:04d}",
+        f"{end_year:04d}",
     ]
     return "_".join(parts) + ".nc"
 

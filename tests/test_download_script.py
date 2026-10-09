@@ -13,8 +13,8 @@ _spec.loader.exec_module(download)
 
 
 def test_the_manifest_covers_the_whole_published_set():
-    # 34 members x 9 variables, plus the two time-invariant fields.
-    assert len(download.manifest()) == 34 * 9 + 2
+    members = sum(count for _, _, count, _, _ in download.ENSEMBLES)
+    assert len(download.manifest()) == members * 9 + 2
 
 
 def test_the_script_agrees_with_the_pipeline_about_members_per_ensemble():
@@ -22,7 +22,7 @@ def test_the_script_agrees_with_the_pipeline_about_members_per_ensemble():
     # pipeline's. This is what would catch that.
     from fishmip_cesm.write_output import _members
 
-    declared = {(m, e): n for m, e, n in download.ENSEMBLES}
+    declared = {(m, e): n for m, e, n, _, _ in download.ENSEMBLES}
     for ensemble in REAL_ENSEMBLES:
         key = (ensemble.source_id, ensemble.experiment_id)
         assert key in declared, f"{key} missing from the download script"
@@ -38,7 +38,7 @@ def test_filtering_by_scenario_excludes_the_others():
 def test_filtering_by_variable_spans_every_ensemble():
     names = [name for _, name in download.manifest(variable="intpp")]
 
-    assert len(names) == 34
+    assert len(names) == sum(c for _, _, c, _, _ in download.ENSEMBLES)
     assert all("_intpp_" in name for name in names)
 
 
@@ -84,3 +84,16 @@ def test_a_range_header_survives_the_user_agent_being_added():
 
     assert request.get_header("Range") == "bytes=100-"
     assert request.get_header("User-agent")
+
+
+def test_picontrol_filenames_carry_padded_model_years():
+    names = [name for _, name in download.manifest(scenario="picontrol")]
+
+    assert any(name.endswith("_0300_0499.nc") for name in names)
+    assert any(name.endswith("_1801_2000.nc") for name in names)
+
+
+def test_historical_filenames_carry_the_cmip_span():
+    names = [name for _, name in download.manifest(scenario="historical")]
+
+    assert names and all(name.endswith("_1850_2014.nc") for name in names)
