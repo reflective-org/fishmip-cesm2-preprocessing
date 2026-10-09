@@ -8,7 +8,7 @@ Exits non-zero if any ensemble is missing variables or has coverage gaps.
 import sys
 
 from fishmip_cesm.catalog import CaseReport, verify_ensemble
-from fishmip_cesm.ensembles import ANALYSIS_WINDOW, ENSEMBLES, REQUIRED_VARIABLES
+from fishmip_cesm.ensembles import ENSEMBLES, REQUIRED_VARIABLES
 
 
 def _format_span(span) -> str:
@@ -28,8 +28,7 @@ def _describe(report: CaseReport) -> list[str]:
 
 
 def main() -> int:
-    window = _format_span(ANALYSIS_WINDOW)
-    print(f"Verifying {len(ENSEMBLES)} ensembles over {window}\n")
+    print(f"Verifying {len(ENSEMBLES)} ensembles\n")
 
     failures = 0
     for ensemble in ENSEMBLES:
@@ -37,11 +36,12 @@ def main() -> int:
             ensemble.root,
             ensemble.case_glob,
             REQUIRED_VARIABLES,
-            ANALYSIS_WINDOW,
+            ensemble.window,
         )
         ok = sum(1 for r in reports if r.ok)
         status = "ok" if reports and ok == len(reports) else "PROBLEM"
-        print(f"{ensemble.name} [{ensemble.model}]: {ok}/{len(reports)} members ok  {status}")
+        print(f"{ensemble.name} [{ensemble.model}] {_format_span(ensemble.window)}: "
+              f"{ok}/{len(reports)} members ok  {status}")
 
         if not reports:
             print(f"    no case directories matched {ensemble.case_glob}")

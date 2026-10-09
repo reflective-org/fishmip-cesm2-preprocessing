@@ -14,7 +14,13 @@ GDEX = Path("/glade/campaign/collections/gdex/data")
 CAMPAIGN = Path("/glade/campaign/cgd/amp/walkerl")
 
 # MCB ends 2069 while SAI runs to 2084, so the three-way comparison caps here.
+# This is the scenario window; historical and piControl carry their own.
 ANALYSIS_WINDOW: Span = ((2035, 1), (2069, 12))
+
+
+def months_in(window: Span) -> int:
+    (start_year, start_month), (end_year, end_month) = window
+    return (end_year - start_year) * 12 + (end_month - start_month) + 1
 
 # The eight MARBL fields the FishMIP variables derive from, plus temperature.
 # Grid fields (KMT, HT, dz, z_w_top, z_w_bot) are coordinates inside each file,
@@ -56,6 +62,9 @@ class Ensemble:
     experiment_id: str
     root: Path
     case_glob: str
+    #: Every ensemble states its own span. Historical is 1850-2014 and
+    #: piControl is a model-year control, so no single window covers the set.
+    window: Span = ANALYSIS_WINDOW
 
 
 ENSEMBLES = [

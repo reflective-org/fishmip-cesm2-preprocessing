@@ -6,6 +6,9 @@ from fishmip_cesm.verify_output import verify
 MONTHS = 420
 
 
+CONVENTIONAL = "cesm2-cam6_ssp245_001_intpp_onedeg_global_monthly_2035_2069.nc"
+
+
 def _write(path, name="intpp", months=MONTHS, units="mol m-2 s-1", value=1e-6):
     time = xr.date_range("2035-01-01", periods=months, freq="MS")
     field = xr.DataArray(
@@ -18,14 +21,14 @@ def _write(path, name="intpp", months=MONTHS, units="mol m-2 s-1", value=1e-6):
 
 
 def test_a_good_file_verifies(tmp_path):
-    path = tmp_path / "good.nc"
+    path = tmp_path / CONVENTIONAL
     _write(path)
 
     assert verify(path)[0] == "ok"
 
 
 def test_a_truncated_file_is_reported_incomplete(tmp_path):
-    path = tmp_path / "short.nc"
+    path = tmp_path / CONVENTIONAL
     _write(path, months=120)
 
     verdict, detail = verify(path)
@@ -36,14 +39,14 @@ def test_a_truncated_file_is_reported_incomplete(tmp_path):
 
 def test_a_file_that_is_not_netcdf_is_bad(tmp_path):
     # What two processes writing the same path at once can leave behind.
-    path = tmp_path / "mangled.nc"
+    path = tmp_path / CONVENTIONAL
     path.write_bytes(b"\x89HDF\r\n\x1a\n" + b"\x00" * 64)
 
     assert verify(path)[0] == "bad"
 
 
 def test_values_outside_their_range_are_bad(tmp_path):
-    path = tmp_path / "wrong.nc"
+    path = tmp_path / CONVENTIONAL
     _write(path, value=5.0)  # mol m-2 s-1; five orders too large
 
     verdict, detail = verify(path)
@@ -53,7 +56,7 @@ def test_values_outside_their_range_are_bad(tmp_path):
 
 
 def test_missing_units_are_bad(tmp_path):
-    path = tmp_path / "nounits.nc"
+    path = tmp_path / CONVENTIONAL
     _write(path, units="")
 
     assert verify(path)[0] == "bad"
@@ -74,7 +77,7 @@ def _write_with_late_outlier(path, months=MONTHS):
 
 
 def test_a_shallow_check_misses_a_problem_deep_in_the_file(tmp_path):
-    path = tmp_path / "late.nc"
+    path = tmp_path / CONVENTIONAL
     _write_with_late_outlier(path)
 
     assert verify(path)[0] == "ok"
@@ -84,7 +87,7 @@ def test_a_deep_check_finds_it(tmp_path):
     # Reading only the first timestep cannot see chunk corruption or bad values
     # later in the file, which is how a damaged file passed verification and
     # then failed on write.
-    path = tmp_path / "late.nc"
+    path = tmp_path / CONVENTIONAL
     _write_with_late_outlier(path)
 
     verdict, detail = verify(path, deep=True)
@@ -107,17 +110,29 @@ def _write_fixed(path, name="deptho", value=3000.0):
 def test_a_time_invariant_field_verifies_without_a_time_axis(tmp_path):
     # deptho and thkcello have no time dimension. Checking time coverage on
     # them would fail on a file that is perfectly correct.
-    path = tmp_path / "deptho.nc"
+    path = tmp_path / "cesm2_deptho_onedeg_global_fx.nc"
     _write_fixed(path)
 
     assert verify(path)[0] == "ok"
 
 
 def test_a_time_invariant_field_is_still_range_checked(tmp_path):
-    path = tmp_path / "deep.nc"
+    path = tmp_path / "cesm2_deptho_onedeg_global_fx.nc"
     _write_fixed(path, value=50000.0)  # m; deeper than any ocean
 
     verdict, detail = verify(path, deep=True)
 
     assert verdict == "bad"
     assert "range" in detail
+
+
+def test_a_file_whose_name_hides_its_window_is_bad(tmp_path):
+    # Without a window there is nothing to check coverage against, and passing
+    # it would mean publishing a file of unknown span.
+    path = tmp_path / "renamed-by-someone.nc"
+    _write(path)
+
+    verdict, detail = verify(path)
+
+    assert verdict == "bad"
+    assert "window" in detail

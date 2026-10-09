@@ -16,7 +16,7 @@ from pathlib import Path
 
 import xarray as xr
 
-from fishmip_cesm.ensembles import ANALYSIS_WINDOW
+from fishmip_cesm.naming import window_from_filename
 from fishmip_cesm.validate import (
     PLAUSIBLE_RANGES,
     check_range,
@@ -55,8 +55,16 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
         # deptho and thkcello have no time axis; checking coverage on them
         # would fail a file that is entirely correct.
         checks = [check_units(name, field)]
+        # The window comes from the file's own name: historical, piControl and
+        # the scenarios cover different spans, and a published file travels
+        # with nothing else to say which.
+        window = window_from_filename(path.name)
         if "time" in field.dims:
-            checks.insert(0, check_time_coverage(field, ANALYSIS_WINDOW))
+            if window is None:
+                # Skipping the check would pass a file whose coverage cannot be
+                # established at all, which is worse than failing it.
+                return "bad", f"cannot read a window from the name: {path.name}"
+            checks.insert(0, check_time_coverage(field, window))
         # Range is read from a single timestep: enough to catch a mangled file,
         # and reading every month of every file would cost as much as writing
         # them did.

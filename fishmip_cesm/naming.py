@@ -94,3 +94,19 @@ def fixed_filename(variable: str) -> str:
     if variable not in FIXED_VARIABLES:
         raise ValueError(f"{variable} varies in time; use output_filename")
     return f"cesm2_{_token(variable)}_{RESOLUTION}_{REGION}_fx.nc"
+
+
+def window_from_filename(filename: str):
+    """The analysis window a published file covers, read from its own name.
+
+    Verification needs to know what to expect per file, and once published a
+    file travels with nothing but its name. Returns None for the time-invariant
+    fields, which carry no window.
+    """
+    parts = filename.removesuffix(".nc").split("_")
+    if len(parts) < 2:
+        return None
+    start, end = parts[-2], parts[-1]
+    if not (start.isdigit() and end.isdigit()):
+        return None
+    return ((int(start), 1), (int(end), 12))

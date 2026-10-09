@@ -23,7 +23,7 @@ import xarray as xr
 
 from fishmip_cesm.catalog import parse_timeseries_filename
 from fishmip_cesm.chunking import time_chunk
-from fishmip_cesm.ensembles import ANALYSIS_WINDOW, ENSEMBLES
+from fishmip_cesm.ensembles import ENSEMBLES, months_in
 from fishmip_cesm.naming import BUCKET
 from fishmip_cesm.output import to_fishmip_dataset, unflatten
 from fishmip_cesm.plan import plan_output
@@ -200,7 +200,7 @@ def write_variable(
         scenario=ensemble.experiment_id,
         member=member,
         variable=fishmip_name,
-        window=ANALYSIS_WINDOW,
+        window=ensemble.window,
         levels=EXPECTED_LEVELS.get(fishmip_name, 1),
     )
     if not write:
@@ -240,7 +240,7 @@ def write_variable(
         {d: 0 for d in regridded.dims if d != "cell"}, missing_dims="ignore"
     )
     checks = validate_variable(fishmip_name, sample, ocean)
-    checks.append(check_time_coverage(native, ANALYSIS_WINDOW))
+    checks.append(check_time_coverage(native, ensemble.window))
     if not gate_passed(checks):
         print(f"  {fishmip_name}: FAILED the gate, not written")
         print(format_report(checks))
@@ -361,14 +361,14 @@ def main() -> int:
                 # A dry run reads directory listings only. Nothing is opened,
                 # decoded or held, so it costs neither time nor memory.
                 for cesm_name in DIRECT_SOURCES:
-                    if not _window_paths(month_1, cesm_name, ANALYSIS_WINDOW):
+                    if not _window_paths(month_1, cesm_name, ensemble.window):
                         print(f"  {cesm_name}: not found")
                         failures += 1
                         continue
                     work.append((_fishmip_name(cesm_name), cesm_name, None))
                 work.append(("tob", "TEMP", None))
             else:
-                temperature = _open_window(month_1, "TEMP", ANALYSIS_WINDOW)
+                temperature = _open_window(month_1, "TEMP", ensemble.window)
                 if temperature is None:
                     print("  no TEMP, skipping")
                     failures += 1
@@ -391,7 +391,7 @@ def main() -> int:
                     raw = (
                         temperature
                         if cesm_name == "TEMP"
-                        else _open_window(month_1, cesm_name, ANALYSIS_WINDOW)
+                        else _open_window(month_1, cesm_name, ensemble.window)
                     )
                     if raw is None:
                         print(f"  {cesm_name}: not found, skipping")
@@ -440,10 +440,10 @@ def main() -> int:
                             scenario=ensemble.experiment_id,
                             member=member,
                             variable=fishmip_name,
-                            window=ANALYSIS_WINDOW,
+                            window=ensemble.window,
                             levels=levels,
                         ).filename,
-                        420,
+                        months_in(ensemble.window),
                     )
                 ):
                     total_gb += plan_output(
@@ -451,7 +451,7 @@ def main() -> int:
                         scenario=ensemble.experiment_id,
                         member=member,
                         variable=fishmip_name,
-                        window=ANALYSIS_WINDOW,
+                        window=ensemble.window,
                         levels=levels,
                     ).gigabytes
                 else:
