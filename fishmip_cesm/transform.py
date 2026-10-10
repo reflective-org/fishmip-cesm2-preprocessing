@@ -27,10 +27,15 @@ def extract_seafloor(field: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
         raise ValueError(
             f"seafloor extraction needs a {FULL_DEPTH_DIM} field, got {found!r}"
         )
+    # Some archives store KMT with a fill value, so land decodes to NaN rather
+    # than 0. Casting NaN to an integer index is undefined behaviour -- x86
+    # yields INT64_MIN and raises far out of bounds, arm64 yields 0 -- so land
+    # is normalised to 0 before any arithmetic touches it.
+    levels = kmt.fillna(0)
     # Clip before indexing: KMT = 0 is land, and -1 would wrap round to the
     # deepest level instead of masking.
-    bottom = (kmt - 1).clip(min=0).astype(int)
-    return field.isel(z_t=bottom).where(kmt > 0)
+    bottom = (levels - 1).clip(min=0).astype(int)
+    return field.isel(z_t=bottom).where(levels > 0)
 
 
 # CESM name -> (FishMIP name, multiplicative factor, FishMIP units).

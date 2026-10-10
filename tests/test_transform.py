@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -96,3 +98,32 @@ def test_tob_is_temperature_at_the_seafloor():
     assert tob.name == "tob"
     assert tob.attrs["units"] == "degC"
     np.testing.assert_array_equal(tob.values, np.array([[40.0, 20.0], [30.0, 10.0]]))
+
+
+def test_treats_a_missing_kmt_value_as_land():
+    # Some archives store KMT with a fill value, so xarray decodes land to NaN
+    # rather than 0. Casting NaN to an integer index is undefined: x86 yields
+    # INT64_MIN and indexes far out of bounds, which is how the Large Ensemble
+    # failed, while arm64 quietly yields 0 and gives the right answer by luck.
+    # Promoting the warning to an error is what makes this portable -- the
+    # invariant is that no NaN ever reaches the cast.
+    kmt = xr.DataArray(np.array([[4.0, np.nan], [3.0, 1.0]]), dims=("nlat", "nlon"))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        seafloor = extract_seafloor(_column_field(), kmt)
+
+    np.testing.assert_array_equal(
+        seafloor.values, np.array([[40.0, np.nan], [30.0, 10.0]])
+    )
+
+
+def test_a_float_kmt_still_indexes_correctly():
+    # A fill value forces the whole array to float even where it is valid.
+    kmt = xr.DataArray(np.array([[4.0, 2.0], [3.0, 1.0]]), dims=("nlat", "nlon"))
+
+    seafloor = extract_seafloor(_column_field(), kmt)
+
+    np.testing.assert_array_equal(
+        seafloor.values, np.array([[40.0, 20.0], [30.0, 10.0]])
+    )
