@@ -34,6 +34,16 @@ DASK_WORKERS="${DASK_WORKERS:-1}"
 # in short supply.
 COMPLEVEL="${COMPLEVEL:-1}"
 
+# Bound a hang, nothing more. A hang is indefinite, so this can be generous
+# without losing its purpose -- and being stingy costs whole runs. At 8h the
+# three longest members were killed while still writing: two of them completed
+# a file within a minute of being killed, having made real progress all night.
+# A piControl member is 2400 months against a scenario's 420 and carries two
+# 60-level variables, each of which alone takes most of a working day on one
+# core. Declared once because the previous pair of literals drifted apart, and
+# the summary spent two runs reporting a limit that was no longer in force.
+MEMBER_TIMEOUT="${MEMBER_TIMEOUT:-24h}"
+
 if [ ! -f "${WEIGHTS}" ]; then
     echo "weight file not found: ${WEIGHTS}" >&2
     exit 2
@@ -44,7 +54,7 @@ fi
 # state S with no output at all, which is worse than any crash.
 export HDF5_USE_FILE_LOCKING=FALSE
 
-export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL
+export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL MEMBER_TIMEOUT
 
 python scripts/list_tasks.py > logs/tasks.txt
 : > logs/timed_out.txt
@@ -62,7 +72,7 @@ run_one() {
     # timeout is only here to bound a hang, which is indefinite, so it can be
     # generous without losing its purpose. Three hours would have killed every
     # historical and piControl member just short of finishing.
-    timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT:-8h}" \
+    timeout --signal=TERM --kill-after=60 "${MEMBER_TIMEOUT}" \
         nice -n 19 python -m fishmip_cesm.write_output \
         --weights "${WEIGHTS}" \
         --out-dir "${OUT_DIR}" \
@@ -94,12 +104,22 @@ timed_out=$(wc -l < logs/timed_out.txt)
 if [ "${xargs_status}" -ne 0 ] || [ "${written}" -lt "${expected}" ]; then
     echo
     if [ "${timed_out}" -gt 0 ]; then
-        echo "${timed_out} member(s) TIMED OUT after ${MEMBER_TIMEOUT:-3h}:"
+        echo "${timed_out} member(s) TIMED OUT after ${MEMBER_TIMEOUT}:"
         sed 's/^/  /' logs/timed_out.txt
         echo
-        echo "A member normally takes well under an hour, so a timeout means a"
-        echo "hang rather than slow progress. The usual cause is a damaged"
-        echo "output file left by an earlier interrupted run: opening it to"
+        echo "A timeout is not by itself a hang. A scenario member takes under"
+        echo "an hour, but historical is 1980 months and piControl 2400, and a"
+        echo "single 60-level variable there can take most of a day on one core."
+        echo
+        echo "Tell the two apart by the output timestamps rather than by the"
+        echo "exit status -- a member still producing files minutes before it"
+        echo "was killed was progressing and simply needs longer:"
+        echo
+        echo "  ls -l --time-style=full-iso ${OUT_DIR}/<member-prefix>_*.nc"
+        echo
+        echo "A long gap between the last file and the kill is a real hang. So"
+        echo "is a file far smaller than its siblings. The usual cause is a"
+        echo "damaged file left by an earlier interrupted run: opening it to"
         echo "check whether it is complete blocks instead of failing."
     else
         echo "SOME MEMBERS FAILED. Look for 'FAILED' in this log."
