@@ -54,6 +54,12 @@ fi
 # state S with no output at all, which is worse than any crash.
 export HDF5_USE_FILE_LOCKING=FALSE
 
+# Python block-buffers stdout when it is a file, and a member killed by the
+# timeout dies without flushing, so its progress is discarded precisely when
+# something went wrong. A member that ran for 24 hours left one line in the
+# log, which made it impossible to tell being stuck from being silenced.
+export PYTHONUNBUFFERED=1
+
 export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL MEMBER_TIMEOUT
 
 python scripts/list_tasks.py > logs/tasks.txt
