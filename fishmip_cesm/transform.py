@@ -1,5 +1,6 @@
 """Derive FishMIP variables from raw CESM POP/MARBL fields."""
 
+import numpy as np
 import xarray as xr
 
 
@@ -172,6 +173,14 @@ def centre_time(dataset: xr.Dataset) -> xr.Dataset:
     return dataset.assign_coords(time=centred)
 
 
+# A monthly mean carries no sub-second meaning, and a remainder there is
+# poison: it forces xarray to write the axis as "nanoseconds since
+# <base>.000001536", and udunits will not parse a fractional-second base.
+# ncdump prints raw integers and CDO reports every timestamp as
+# 0000-00-00 00:00:00, so the axis is silently unreadable outside Python.
+_NS_PER_SECOND = 1_000_000_000
+
+
 def _midpoint(lower, upper):
     """Halfway between two time arrays, whatever calendar they are on.
 
@@ -180,19 +189,30 @@ def _midpoint(lower, upper):
     cftime objects. Those cannot be cast to datetime64, averaged, or added to a
     timedelta64, so each case is converted to a number, halved, and converted
     back.
+
+    Both branches round to the nearest second. The bounds arrive with a
+    sub-second remainder already in them, because POP stores them as float64
+    days and decoding that lands outside the range where float64 counts
+    integers exactly -- about 1536 ns at 2035, about 7 us at 1850.
     """
     if lower.dtype == object:  # cftime, i.e. a model-year or non-standard calendar
         import cftime
 
         calendar = lower.flat[0].calendar
-        units = "days since 0001-01-01"
+        # Seconds, not days: a day-based count has to be scaled by 86400e6 to
+        # reach microseconds, which overflows exact float64 range on its own.
+        units = "seconds since 0001-01-01"
         start = cftime.date2num(lower, units, calendar)
         end = cftime.date2num(upper, units, calendar)
-        return cftime.num2date((start + end) / 2, units, calendar)
+        middle = np.round((start + end) / 2)
+        return cftime.num2date(middle, units, calendar)
 
     start = lower.astype("datetime64[ns]").astype("int64")
     end = upper.astype("datetime64[ns]").astype("int64")
-    return (start + (end - start) // 2).astype("datetime64[ns]")
+    middle = start + (end - start) // 2
+    # Integer rounding to the nearest second, exact at every magnitude.
+    whole = (middle + _NS_PER_SECOND // 2) // _NS_PER_SECOND * _NS_PER_SECOND
+    return whole.astype("datetime64[ns]")
 
 
 def masked_thickness(dz: xr.DataArray, kmt: xr.DataArray) -> xr.DataArray:
