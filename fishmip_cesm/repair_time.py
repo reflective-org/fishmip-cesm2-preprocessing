@@ -20,22 +20,38 @@ whose timestamps move by more than half a second is left as it was.
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
-import cftime
 import netCDF4
 import numpy as np
 
 from fishmip_cesm.validate import check_time_encoding
 
-# Counting in seconds from the calendar's own epoch keeps every value inside
-# the range where float64 holds integers exactly, which counting in days and
-# scaling to microseconds does not.
-_ROUNDING_UNITS = "seconds since 0001-01-01"
+_NS_PER_SECOND = 1_000_000_000
 _SECONDS_PER_HOUR = 3600
+
+# Every CF time unit, in nanoseconds. cftime refuses 'nanoseconds' outright --
+# it accepts microseconds and coarser -- which is why this works on the
+# offsets directly instead of decoding them into dates.
+_NANOSECONDS_PER = {
+    "nanoseconds": 1,
+    "microseconds": 1_000,
+    "milliseconds": 1_000_000,
+    "seconds": _NS_PER_SECOND,
+    "minutes": 60 * _NS_PER_SECOND,
+    "hours": _SECONDS_PER_HOUR * _NS_PER_SECOND,
+    "days": 86_400 * _NS_PER_SECOND,
+}
+
+_UNITS = re.compile(r"^\s*(\w+)\s+since\s+(.*?)\s*$")
+# A base's own fractional second, which is the whole problem: xarray anchors
+# the axis on its first value, so any remainder there lands in the units.
+_FRACTION = re.compile(r"^(.*?\d{2}:\d{2}:\d{2})\.(\d+)(.*)$")
+
 # Timestamps are meant to be whole seconds; more drift than this means the
-# repair misread the axis rather than tidied it.
+# axis was misread rather than tidied.
 _MAX_DRIFT_SECONDS = 0.5
 
 
@@ -45,10 +61,7 @@ def _time_encoding(path: Path) -> tuple[str | None, str]:
         if "time" not in dataset.variables:
             return None, "standard"
         time = dataset.variables["time"]
-        return (
-            getattr(time, "units", None),
-            getattr(time, "calendar", "standard"),
-        )
+        return getattr(time, "units", None), getattr(time, "calendar", "standard")
 
 
 def needs_repair(path: Path) -> bool:
@@ -59,18 +72,40 @@ def needs_repair(path: Path) -> bool:
     return not check_time_encoding(units).passed
 
 
-def _rounded_to_the_second(dates, calendar):
-    seconds = cftime.date2num(dates, _ROUNDING_UNITS, calendar)
-    return cftime.num2date(np.round(seconds), _ROUNDING_UNITS, calendar)
+def _split_units(units: str) -> tuple[int, str, int]:
+    """Nanoseconds per step, the base truncated to a whole second, and its
+    fractional part in nanoseconds."""
+    matched = _UNITS.match(units)
+    if not matched:
+        raise ValueError(f"cannot read time units: {units!r}")
+    step, base = matched.group(1), matched.group(2)
+    if step not in _NANOSECONDS_PER:
+        raise ValueError(f"unknown time unit {step!r} in {units!r}")
 
-
-def _clean_units(first) -> tuple[str, int]:
-    """Units anchored on the first timestamp, and the seconds they count in."""
-    stamp = (
-        f"{first.year:04d}-{first.month:02d}-{first.day:02d} "
-        f"{first.hour:02d}:{first.minute:02d}:{first.second:02d}"
+    fraction = _FRACTION.match(base)
+    if not fraction:
+        return _NANOSECONDS_PER[step], base, 0
+    digits = fraction.group(2)[:9].ljust(9, "0")
+    return (
+        _NANOSECONDS_PER[step],
+        fraction.group(1) + fraction.group(3),
+        int(digits),
     )
-    return f"hours since {stamp}", _SECONDS_PER_HOUR
+
+
+def _whole_seconds(values, units: str) -> tuple[list[int], str]:
+    """Offsets from a whole-second base, rounded to the nearest second.
+
+    Python integers throughout: a nanosecond count across 35 years runs to
+    1e18, and folding the base's fraction back in before rounding has to be
+    exact or the repair invents the drift it is meant to remove.
+    """
+    per_step, base, fraction = _split_units(units)
+    seconds = []
+    for value in values:
+        nanoseconds = int(value) * per_step + fraction
+        seconds.append((nanoseconds + _NS_PER_SECOND // 2) // _NS_PER_SECOND)
+    return seconds, base
 
 
 def repair_file(path: Path) -> bool:
@@ -78,39 +113,39 @@ def repair_file(path: Path) -> bool:
     if not needs_repair(path):
         return False
 
-    units, calendar = _time_encoding(path)
+    units, _ = _time_encoding(path)
     with netCDF4.Dataset(path) as dataset:
-        raw = dataset.variables["time"][:]
-    original = cftime.num2date(np.asarray(raw), units, calendar)
-    rounded = _rounded_to_the_second(original, calendar)
+        raw = np.asarray(dataset.variables["time"][:])
+    seconds, base = _whole_seconds(raw, units)
 
-    new_units, step = _clean_units(rounded[0])
-    offsets = cftime.date2num(rounded, new_units.replace("hours", "seconds"), calendar)
-    if np.any(np.asarray(offsets) % step):
-        # Not a whole number of hours apart, so say it in seconds instead of
-        # silently rounding the axis to the nearest hour.
-        new_units = new_units.replace("hours", "seconds")
-        step = 1
-    values = np.round(np.asarray(offsets) / step).astype("int64")
+    # Prefer hours, to match the files that were always readable, but only when
+    # every stamp is a whole number of them -- otherwise say it in seconds
+    # rather than quietly round the axis to the nearest hour.
+    if all(offset % _SECONDS_PER_HOUR == 0 for offset in seconds):
+        new_units = f"hours since {base}"
+        values = [offset // _SECONDS_PER_HOUR for offset in seconds]
+    else:
+        new_units = f"seconds since {base}"
+        values = seconds
 
     with netCDF4.Dataset(path, "a") as dataset:
         time = dataset.variables["time"]
         time.units = new_units
-        time[:] = values
+        time[:] = np.asarray(values, dtype="int64")
 
-    drift = _drift(path, original)
+    drift = _drift(path, seconds)
     if drift > _MAX_DRIFT_SECONDS:
         raise ValueError(f"{path.name}: timestamps moved {drift:.3f}s, not repaired")
     return True
 
 
-def _drift(path: Path, original) -> float:
-    """The largest distance any timestamp moved, read back from the file."""
-    units, calendar = _time_encoding(path)
+def _drift(path: Path, intended: list[int]) -> float:
+    """How far the written axis sits from the seconds it was meant to carry."""
+    units, _ = _time_encoding(path)
     with netCDF4.Dataset(path) as dataset:
-        raw = dataset.variables["time"][:]
-    written = cftime.num2date(np.asarray(raw), units, calendar)
-    return max(abs((w - o).total_seconds()) for w, o in zip(written, original))
+        raw = np.asarray(dataset.variables["time"][:])
+    written, _ = _whole_seconds(raw, units)
+    return max(abs(w - i) for w, i in zip(written, intended))
 
 
 def main() -> int:
