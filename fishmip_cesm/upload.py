@@ -63,9 +63,28 @@ def plan_upload(filename: str) -> str:
     return f"{PREFIX}/{parts[_EXPERIMENT_FIELD]}/{filename}"
 
 
-def needs_upload(local_size: int, remote_size: int | None) -> bool:
-    """Whether to send this file. Equal sizes are treated as already there."""
-    return remote_size != local_size
+def needs_upload(
+    local_size: int,
+    remote_size: int | None,
+    local_modified: float | None = None,
+    remote_modified: float | None = None,
+) -> bool:
+    """Whether to send this file.
+
+    Size alone is not enough. The time-axis repair rewrites a units string and
+    a few thousand integers inside a multi-gigabyte file, which can leave its
+    size unchanged -- and judging by size would then call a repaired file
+    "already there" and leave the unreadable axis public.
+
+    So a file edited since its object was written is resent. An object is
+    always written after the file it came from, so anything untouched is older
+    than its copy in the bucket and stays skipped.
+    """
+    if remote_size is None or remote_size != local_size:
+        return True
+    if local_modified is None or remote_modified is None:
+        return False
+    return local_modified > remote_modified
 
 
 def _client(credentials: Credentials):
@@ -80,13 +99,15 @@ def _client(credentials: Credentials):
     )
 
 
-def _remote_size(client, key: str) -> int | None:
+def _remote_state(client, key: str) -> tuple[int | None, float | None]:
+    """The object's size and last-modified time, or (None, None) if absent."""
     from botocore.exceptions import ClientError
 
     try:
-        return client.head_object(Bucket=BUCKET, Key=key)["ContentLength"]
+        head = client.head_object(Bucket=BUCKET, Key=key)
     except ClientError:
-        return None
+        return None, None
+    return head["ContentLength"], head["LastModified"].timestamp()
 
 
 def main() -> int:
@@ -136,8 +157,10 @@ def main() -> int:
     sent = skipped = 0
     for path in paths:
         key = keys[path]
-        local = path.stat().st_size
-        if not needs_upload(local, _remote_size(client, key)):
+        stat = path.stat()
+        local = stat.st_size
+        remote_size, remote_modified = _remote_state(client, key)
+        if not needs_upload(local, remote_size, stat.st_mtime, remote_modified):
             skipped += 1
             continue
         print(f"  {path.name} -> {key} ({local / 1e9:.2f} GB)")

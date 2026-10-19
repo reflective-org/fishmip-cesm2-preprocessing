@@ -58,3 +58,26 @@ def test_a_time_invariant_field_goes_to_the_grid_prefix():
     assert plan_upload("cesm2_thkcello_onedeg_global_fx.nc") == (
         "fishmip/grid/cesm2_thkcello_onedeg_global_fx.nc"
     )
+
+
+def test_a_file_edited_since_it_was_uploaded_needs_resending():
+    # The time-axis repair rewrites a units string and some integers in place,
+    # which can leave the file exactly the same size. Judging by size alone
+    # would call these "already there" and leave the broken axis public.
+    assert needs_upload(
+        local_size=100,
+        remote_size=100,
+        local_modified=2000.0,
+        remote_modified=1000.0,
+    )
+
+
+def test_a_file_untouched_since_it_was_uploaded_does_not():
+    # The object is always written after the local file, so a quiet file is
+    # always older than its copy in the bucket.
+    assert not needs_upload(
+        local_size=100,
+        remote_size=100,
+        local_modified=1000.0,
+        remote_modified=2000.0,
+    )
