@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 
 from fishmip_cesm.validate import (
+    check_time_encoding,
     check_no_ocean_holes,
     check_range,
     check_units,
@@ -134,3 +135,34 @@ def test_a_kelvin_mix_up_is_still_caught():
     thetao = xr.DataArray([271.0, 288.0], dims="cell")
 
     assert not check_range("thetao", thetao).passed
+
+
+@pytest.mark.parametrize(
+    "units",
+    [
+        "hours since 2035-01-16 12:00:00",
+        "hours since 1801-01-16 12:00:00.000000",
+        "days since 0001-01-01",
+    ],
+)
+def test_a_parsable_time_encoding_passes(units):
+    # A zero fraction is fine -- udunits reads it. Only a non-zero remainder
+    # breaks the parse.
+    assert check_time_encoding(units).passed
+
+
+@pytest.mark.parametrize(
+    "units",
+    [
+        "nanoseconds since 2035-01-16 13:00:00.000001536",
+        "microseconds since 1850-01-16 13:00:00.000007",
+    ],
+)
+def test_a_fractional_second_base_fails(units):
+    # udunits will not parse these: ncdump prints raw integers and CDO reports
+    # every timestamp as 0000-00-00 00:00:00. Python reads them, so nothing
+    # upstream of publication noticed until a collaborator tried ncdump.
+    check = check_time_encoding(units)
+
+    assert not check.passed
+    assert "fractional" in check.detail

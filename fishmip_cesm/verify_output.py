@@ -21,6 +21,7 @@ from fishmip_cesm.validate import (
     PLAUSIBLE_RANGES,
     check_range,
     check_time_coverage,
+    check_time_encoding,
     check_units,
     gate_passed,
 )
@@ -65,6 +66,11 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
                 # established at all, which is worse than failing it.
                 return "bad", f"cannot read a window from the name: {path.name}"
             checks.insert(0, check_time_coverage(field, window))
+            # What landed on disk, not what we meant to write: xarray chooses
+            # the units string itself, from the values it was handed.
+            checks.append(
+                check_time_encoding(dataset["time"].encoding.get("units"))
+            )
         # Range is read from a single timestep: enough to catch a mangled file,
         # and reading every month of every file would cost as much as writing
         # them did.
@@ -86,7 +92,14 @@ def verify(path: Path, deep: bool = False) -> tuple[str, str]:
             span = f"{field.sizes['time']} months" if "time" in field.dims else "fixed"
             return "ok", f"{name}, {span}"
         failed = [c for c in checks if not c.passed]
-        verdict = "incomplete" if any("time" in c.name for c in failed) else "bad"
+        # "incomplete" means short, which is recoverable by rewriting. An
+        # unreadable time axis is not that, so match the coverage check by name
+        # rather than on the word "time".
+        verdict = (
+            "incomplete"
+            if any(c.name == "time coverage" for c in failed)
+            else "bad"
+        )
         return verdict, "; ".join(f"{c.name}: {c.detail}" for c in failed)
 
 

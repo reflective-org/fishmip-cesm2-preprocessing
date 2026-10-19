@@ -6,6 +6,7 @@ checks run before upload, not after, and they fail closed: a variable with no
 declared range stops the gate rather than passing through it.
 """
 
+import re
 from dataclasses import dataclass
 
 import xarray as xr
@@ -16,6 +17,35 @@ class Check:
     name: str
     passed: bool
     detail: str
+
+
+# A CF time base like "... 13:00:00.000001536". udunits parses a zero fraction
+# but not a non-zero one, so only the latter is a defect.
+_TIME_BASE_FRACTION = re.compile(r"\d{2}:\d{2}:\d{2}\.(\d+)")
+
+
+def check_time_encoding(units: str | None) -> Check:
+    """Confirm the stored time units can be read outside Python.
+
+    xarray writes the axis relative to its first value, so a sub-second
+    remainder anywhere becomes a fractional-second base -- and udunits refuses
+    it. ncdump then prints raw integers and CDO reports every timestamp as
+    0000-00-00 00:00:00, silently. Python reads these files perfectly, which is
+    why 72 of them reached the public bucket before anyone noticed.
+    """
+    if units is None:
+        return Check("time encoding", False, "no units recorded on the time axis")
+    found = _TIME_BASE_FRACTION.search(units)
+    fractional = bool(found) and any(digit != "0" for digit in found.group(1))
+    return Check(
+        name="time encoding",
+        passed=not fractional,
+        detail=(
+            f"fractional-second base is unreadable outside Python: {units!r}"
+            if fractional
+            else units
+        ),
+    )
 
 
 # Bounds exist to catch unit slips, sign errors and regridding damage, not to
