@@ -182,7 +182,7 @@ closer to campaign storage. The same script runs there with
 
 ### Without an allocation
 
-The full set is about **280 GB**, which will not fit in a GLADE home directory.
+The full set is about **530 GB**, which will not fit in a GLADE home directory.
 Write to scratch:
 
 ```
@@ -225,7 +225,7 @@ two per member:
 python -m fishmip_cesm.write_static --weights grids/... --out-dir "$OUT_DIR" --write
 ```
 
-A few megabytes against 280 GB, but FEISTY needs `deptho` and the project
+A few megabytes against 530 GB, but FEISTY needs `deptho` and the project
 specification asks for both.
 
 ## Verifying what landed

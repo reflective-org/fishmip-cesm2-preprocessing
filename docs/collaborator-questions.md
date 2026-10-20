@@ -9,7 +9,7 @@ Subject: FishMIP forcing ready — four questions before I publish
 Hi all,
 
 The CESM2 preprocessing is done. All four ensembles are regridded onto the FishMIP
-1° grid, unit-converted and renamed: **308 files, about 280 GB**, sitting on NCAR scratch
+1° grid, unit-converted and renamed: **362 files, about 530 GB**, sitting on NCAR scratch
 and verified. Nothing is published yet, because a few things need your call first.
 
 | Ensemble | Model | Members | Window |
@@ -51,7 +51,7 @@ I would like to know the members line up with the branch points of
 CESM2 Large Ensemble is SSP3-7.0 rather than SSP2-4.5.)
 
 **3. Do the fish models need full-depth `thetao` and `no3`? — Colleen and Jerome.** Those
-two are 60-level fields and account for about two-thirds of the 280 GB. `tob` ships
+two are 60-level fields and account for about two-thirds of the 530 GB. `tob` ships
 separately, so if FEISTY and BOATS want surface and seafloor temperature rather than a
 profile, dropping full-depth `thetao` would remove roughly 85 GB of data nobody reads.
 Easy either way — I would just rather not put it in a bucket that charges egress if it is

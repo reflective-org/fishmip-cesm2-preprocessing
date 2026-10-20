@@ -130,7 +130,7 @@ if [ "${xargs_status}" -ne 0 ] || [ "${written}" -lt "${expected}" ]; then
     else
         echo "SOME MEMBERS FAILED. Look for 'FAILED' in this log."
         echo "Running out of room is a common cause: the full set is about"
-        echo "280 GB, which does not fit in a GLADE home directory."
+        echo "530 GB, which does not fit in a GLADE home directory."
     fi
     echo
     echo "Clear anything damaged, then retry:"

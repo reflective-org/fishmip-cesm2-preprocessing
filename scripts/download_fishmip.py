@@ -4,7 +4,7 @@
     python3 download_fishmip.py --list
     python3 download_fishmip.py --variable intpp
     python3 download_fishmip.py --scenario g6-1p5k-mcb --out-dir ./forcing
-    python3 download_fishmip.py                       # everything, ~280 GB
+    python3 download_fishmip.py                       # everything, ~530 GB
 
 Standard library only -- no pip install, no credentials, no AWS tooling. Reads
 are public, so each file is a plain HTTPS GET.
