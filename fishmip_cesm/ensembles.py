@@ -31,6 +31,14 @@ CAM6_PICONTROL_WINDOW: Span = ((1801, 1), (2000, 12))
 # This is the scenario window; historical and piControl carry their own.
 ANALYSIS_WINDOW: Span = ((2035, 1), (2069, 12))
 
+# The baseline is not an SRM run. SAI and MCB begin in 2035, but ssp245 begins
+# when the scenario does, in 2015, and runs to 2100 as the archive holds it.
+# Starting it at 2035 to match the SRM runs left a twenty-year hole between the
+# end of historical and the start of the scenario -- precisely where the two
+# are meant to join into one continuous record. The SRM comparison uses the
+# 2035-2069 slice of this; nothing is lost by carrying the rest.
+BASELINE_WINDOW: Span = ((2015, 1), (2100, 12))
+
 
 def months_in(window: Span) -> int:
     (start_year, start_month), (end_year, end_month) = window
@@ -93,6 +101,7 @@ ENSEMBLES = [
         experiment_id="ssp245",
         root=GDEX / "d651045" / "CESM2-WACCM-SSP245",
         case_glob=f"b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{_MEMBER}",
+        window=BASELINE_WINDOW,
     ),
     Ensemble(
         name="G6-1.5K-SAI",
@@ -112,6 +121,7 @@ ENSEMBLES = [
         # Case directories nest inside a container directory of the same name.
         root=GDEX / "d651073" / "b.e21.BSSP245smbb.f09_g17",
         case_glob=f"b.e21.BSSP245smbb.f09_g17.{_MEMBER}",
+        window=BASELINE_WINDOW,
     ),
     Ensemble(
         name="historical (WACCM)",
