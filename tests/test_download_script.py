@@ -27,10 +27,10 @@ def test_the_script_agrees_with_the_pipeline_about_members_per_ensemble():
 
 
 def test_filtering_by_scenario_excludes_the_others():
-    urls = [url for url, _ in download.manifest(scenario="g6-1p5k-mcb")]
+    urls = [url for url, _ in download.manifest(scenario="g6-1p5k-sai")]
 
-    assert len(urls) == 5 * 9
-    assert all("g6-1p5k-mcb" in url for url in urls)
+    assert len(urls) == 3 * 9
+    assert all("g6-1p5k-sai" in url for url in urls)
 
 
 def test_filtering_by_variable_spans_every_ensemble():
@@ -61,9 +61,9 @@ def test_the_grid_fields_can_be_fetched_on_their_own():
 
 
 def test_urls_are_built_under_the_scenario_prefix():
-    url, name = download.manifest(scenario="g6-1p5k-mcb", member="001")[0]
+    url, name = download.manifest(scenario="g6-1p5k-sai", member="001")[0]
 
-    assert url == f"{download.BASE}/g6-1p5k-mcb/{name}"
+    assert url == f"{download.BASE}/g6-1p5k-sai/{name}"
 
 
 def test_every_request_carries_a_user_agent():
@@ -95,3 +95,12 @@ def test_historical_filenames_carry_the_cmip_span():
     names = [name for _, name in download.manifest(scenario="historical")]
 
     assert names and all(name.endswith("_1850_2014.nc") for name in names)
+
+
+def test_the_script_offers_nothing_the_pipeline_does_not_produce():
+    # The other direction of the agreement above. A scenario withheld from the
+    # pipeline has to leave the downloader too, or collaborators fetch 404s
+    # for files that were deliberately unpublished.
+    produced = {(e.source_id, e.experiment_id) for e in REAL_ENSEMBLES}
+    for model, experiment, _, _, _ in download.ENSEMBLES:
+        assert (model, experiment) in produced, f"{experiment} is not produced"

@@ -2,6 +2,7 @@ import pytest
 
 from fishmip_cesm.ensembles import (
     ANALYSIS_WINDOW,
+    WITHHELD,
     BASELINE_WINDOW,
     ENSEMBLES,
     HISTORICAL_WINDOW,
@@ -92,3 +93,12 @@ def test_every_other_ensemble_is_case_layout():
     variable_layout = [e for e in ENSEMBLES if e.layout == "variable"]
 
     assert len(variable_layout) == 1
+
+
+def test_the_mcb_runs_are_withheld_pending_the_right_archive():
+    # The path they were built from holds a different set of Walker
+    # simulations. Mislabelled data is worse published than absent, so the
+    # files were withdrawn and the entry taken out of the live set -- kept in
+    # WITHHELD so the archive details are not lost with it.
+    assert all(e.experiment_id != "g6-1p5k-mcb" for e in ENSEMBLES)
+    assert any(e.experiment_id == "g6-1p5k-mcb" for e in WITHHELD)

@@ -33,8 +33,10 @@ BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 ENSEMBLES = [
     ("cesm2-waccm6", "ssp245", 10, 2015, 2100),  # baseline for SAI
     ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2069),
+    # The G6-1.5K-MCB runs are withheld: the archive they were built from
+    # held a different set of simulations, and those files have been
+    # withdrawn from the bucket pending the correct path.
     ("cesm2-cam6", "ssp245", 16, 2015, 2100),  # baseline for MCB
-    ("cesm2-cam6", "g6-1p5k-mcb", 5, 2035, 2069),
     ("cesm2-waccm6", "historical", 3, 1850, 2014),
     ("cesm2-cam6", "historical", 1, 1850, 2014),
     ("cesm2-waccm6", "picontrol", 1, 300, 499),

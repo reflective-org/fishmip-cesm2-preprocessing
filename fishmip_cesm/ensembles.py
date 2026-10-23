@@ -169,6 +169,17 @@ ENSEMBLES = [
         window=HISTORICAL_WINDOW,
         layout="variable",
     ),
+]
+
+
+# Configured but not produced. Kept here rather than deleted so the archive
+# details survive, and out of ENSEMBLES so nothing iterates over them.
+#
+# G6-1.5K-MCB: the walkerl path below holds a different set of Walker
+# simulations, not the G6 MCB runs (Dan Visioni, 2026-10-23). 45 files were
+# published from it under the g6-1p5k-mcb prefix and have been withdrawn.
+# Restoring this needs only the corrected root; the rest should still hold.
+WITHHELD = [
     Ensemble(
         name="G6-1.5K-MCB",
         model="CESM2.1-CAM6",
