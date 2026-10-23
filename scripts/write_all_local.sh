@@ -62,10 +62,28 @@ export PYTHONUNBUFFERED=1
 
 export WEIGHTS OUT_DIR DASK_WORKERS COMPLEVEL MEMBER_TIMEOUT
 
-python scripts/list_tasks.py > logs/tasks.txt
+# Fail here rather than later. Without the package importable, listing the
+# work produces nothing, and an empty task list used to run zero members and
+# report "all members complete" -- a total failure dressed as success.
+if ! python -c "import fishmip_cesm" 2>/dev/null; then
+    echo "fishmip_cesm is not importable: the environment is not active." >&2
+    echo "  module load conda && conda activate npl && pip install -e ." >&2
+    exit 2
+fi
+
+if ! python scripts/list_tasks.py > logs/tasks.txt; then
+    echo "could not list the work; see the error above." >&2
+    exit 2
+fi
 : > logs/timed_out.txt
 total=$(wc -l < logs/tasks.txt)
+if [ "${total}" -eq 0 ]; then
+    echo "no members found. Check the archives are reachable:" >&2
+    echo "  python -m fishmip_cesm.verify_inputs" >&2
+    exit 2
+fi
 echo "$(date +%F\ %T) starting: ${total} members, ${CONCURRENT_MEMBERS} at a time"
+echo "writing to ${OUT_DIR}"
 echo "complevel ${COMPLEVEL}, ${DASK_WORKERS} dask worker(s), nice 19"
 echo
 
