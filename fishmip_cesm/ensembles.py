@@ -100,7 +100,13 @@ ENSEMBLES = [
         source_id="cesm2-waccm6",
         experiment_id="ssp245",
         root=GDEX / "d651045" / "CESM2-WACCM-SSP245",
-        case_glob=f"b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{_MEMBER}",
+        # Members 001-005 only. 006 stops at 2070 and 007-010 at 2069, so they
+        # cannot cover the baseline window; including them would write short
+        # files. Carrying them to 2069 alongside the others would also halve
+        # the ensemble at 2070, narrowing its spread for a reason that is not
+        # physical. The CAM6 baseline has all 16 members to 2100 and is not
+        # restricted.
+        case_glob="b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.00[1-5]",
         window=BASELINE_WINDOW,
     ),
     Ensemble(

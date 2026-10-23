@@ -102,3 +102,29 @@ def test_the_mcb_runs_are_withheld_pending_the_right_archive():
     # WITHHELD so the archive details are not lost with it.
     assert all(e.experiment_id != "g6-1p5k-mcb" for e in ENSEMBLES)
     assert any(e.experiment_id == "g6-1p5k-mcb" for e in WITHHELD)
+
+
+def test_the_waccm_baseline_takes_only_the_members_that_reach_2100():
+    # 006 stops at 2070 and 007-010 at 2069. Under a 2015-2100 window they
+    # would write short files, and carrying them at a shorter span would halve
+    # the ensemble at 2070 -- a kink in the spread with no physical cause.
+    waccm = next(
+        e
+        for e in ENSEMBLES
+        if e.experiment_id == "ssp245" and e.source_id == "cesm2-waccm6"
+    )
+
+    assert waccm.window == BASELINE_WINDOW
+    assert waccm.case_glob.endswith("00[1-5]")
+
+
+def test_the_cam6_baseline_is_not_restricted():
+    # All 16 of its members reach 2100, so it keeps the general member glob.
+    cam6 = next(
+        e
+        for e in ENSEMBLES
+        if e.experiment_id == "ssp245" and e.source_id == "cesm2-cam6"
+    )
+
+    assert cam6.window == BASELINE_WINDOW
+    assert cam6.case_glob.endswith("[0-9][0-9][0-9]")

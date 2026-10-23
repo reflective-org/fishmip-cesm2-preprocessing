@@ -31,7 +31,7 @@ BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 # piControl carries model years rather than calendar years, and its files are
 # named with the same four-digit padding the time axis uses.
 ENSEMBLES = [
-    ("cesm2-waccm6", "ssp245", 10, 2015, 2100),  # baseline for SAI
+    ("cesm2-waccm6", "ssp245", 5, 2015, 2100),  # baseline for SAI; see note
     ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2069),
     # The G6-1.5K-MCB runs are withheld: the archive they were built from
     # held a different set of simulations, and those files have been
