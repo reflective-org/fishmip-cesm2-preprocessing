@@ -1,6 +1,6 @@
 import pytest
 
-from fishmip_cesm.sources import member_cases, variable_files
+from fishmip_cesm.sources import member_cases, member_labels, variable_files
 
 
 class FakeEnsemble:
@@ -194,3 +194,54 @@ def test_the_writer_and_the_verifier_resolve_the_same_members(tmp_path):
         from_verifier = [r.case for r in ensemble_reports(ensemble, ["TEMP"])]
 
         assert from_writer == from_verifier
+
+
+def _flat_archive(tmp_path):
+    """One directory of <case>.pop.h.<VAR>.nc, as the G6-1.5K-MCB runs ship.
+
+    No member directories, no variable directories, and no date range in the
+    name -- the whole record of one variable sits in a single file.
+    """
+    for member in ("001", "002", "003"):
+        for variable in ("TEMP", "NO3", "spC"):
+            path = tmp_path / f"BSSP245.G6-1.5K-MCB.massbal.{member}.pop.h.{variable}.nc"
+            path.write_bytes(b"")
+    # A stray script lives alongside the data in the real archive.
+    (tmp_path / "transfer_ocn.sh").write_text("#!/bin/sh\n")
+    return FakeEnsemble(
+        root=tmp_path,
+        case_glob="BSSP245.G6-1.5K-MCB.massbal.[0-9][0-9][0-9]",
+        layout="flat",
+    )
+
+
+def test_a_flat_archive_yields_its_members(tmp_path):
+    ensemble = _flat_archive(tmp_path)
+
+    assert member_cases(ensemble) == [
+        "BSSP245.G6-1.5K-MCB.massbal.001",
+        "BSSP245.G6-1.5K-MCB.massbal.002",
+        "BSSP245.G6-1.5K-MCB.massbal.003",
+    ]
+
+
+def test_a_flat_archive_ignores_files_that_are_not_data(tmp_path):
+    ensemble = _flat_archive(tmp_path)
+
+    assert all("transfer" not in case for case in member_cases(ensemble))
+
+
+def test_a_flat_archive_finds_one_file_per_variable(tmp_path):
+    ensemble = _flat_archive(tmp_path)
+
+    found = variable_files(ensemble, "BSSP245.G6-1.5K-MCB.massbal.002", "NO3")
+
+    assert [p.name for p in found] == [
+        "BSSP245.G6-1.5K-MCB.massbal.002.pop.h.NO3.nc"
+    ]
+
+
+def test_a_flat_member_label_is_its_trailing_number(tmp_path):
+    ensemble = _flat_archive(tmp_path)
+
+    assert member_labels(member_cases(ensemble)) == ["001", "002", "003"]

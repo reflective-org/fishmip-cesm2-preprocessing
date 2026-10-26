@@ -33,10 +33,8 @@ BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 ENSEMBLES = [
     ("cesm2-waccm6", "ssp245", 5, 2015, 2100),  # baseline for SAI; see note
     ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2069),
-    # The G6-1.5K-MCB runs are withheld: the archive they were built from
-    # held a different set of simulations, and those files have been
-    # withdrawn from the bucket pending the correct path.
     ("cesm2-cam6", "ssp245", 16, 2015, 2100),  # baseline for MCB
+    ("cesm2-cam6", "g6-1p5k-mcb", 3, 2035, 2069),
     ("cesm2-waccm6", "historical", 3, 1850, 2014),
     ("cesm2-cam6", "historical", 1, 1850, 2014),
     ("cesm2-waccm6", "picontrol", 1, 300, 499),
@@ -44,6 +42,15 @@ ENSEMBLES = [
 ]
 
 SCENARIOS = sorted({experiment for _, experiment, _, _, _ in ENSEMBLES})
+
+# Variables an ensemble does not publish, because its archive does not carry
+# the fields they are derived from. Requesting these would simply 404, and a
+# download that reports failures for files that were never meant to exist
+# teaches people to ignore its errors.
+OMITTED = {
+    # photoC_TOT_zint and zoo_loss_zint are not in the G6-1.5K-MCB archive.
+    ("cesm2-cam6", "g6-1p5k-mcb"): ("intpp", "zoo-loss"),
+}
 
 VARIABLES = [
     "intpp",  # primary production
@@ -88,6 +95,8 @@ def manifest(scenario=None, variable=None, member=None):
                 continue
             for name in VARIABLES:
                 if variable and name != variable:
+                    continue
+                if name in OMITTED.get((model, experiment), ()):
                     continue
                 filename = (
                     f"{model}_{experiment}_{number}_{name}"

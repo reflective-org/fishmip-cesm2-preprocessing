@@ -157,7 +157,10 @@ def _open_window(ensemble, case: str, variable: str, window) -> xr.DataArray | N
     # Centre before subsetting. POP stamps a monthly mean at the end of its
     # interval, so slicing the raw stamps shifts every month by one and drops
     # the last month of the window.
-    return subset_to_window(centre_time(dataset)[variable], window)
+    return subset_to_window(
+        centre_time(dataset, reconstruct=ensemble.reconstruct_bounds)[variable],
+        window,
+    )
 
 
 def _grid_file(ensemble, case: str) -> Path:
@@ -353,6 +356,9 @@ def main() -> int:
                 # A dry run reads directory listings only. Nothing is opened,
                 # decoded or held, so it costs neither time nor memory.
                 for cesm_name in DIRECT_SOURCES:
+                    if cesm_name in ensemble.absent_variables:
+                        print(f"  {cesm_name}: not in this archive, omitted")
+                        continue
                     if not _window_paths(ensemble, case, cesm_name, ensemble.window):
                         print(f"  {cesm_name}: not found")
                         failures += 1
@@ -386,6 +392,11 @@ def main() -> int:
                         else _open_window(ensemble, case, cesm_name, ensemble.window)
                     )
                     if raw is None:
+                        # An archive that never carried this variable is not a
+                        # failure; one that should have it and does not is.
+                        if cesm_name in ensemble.absent_variables:
+                            print(f"  {cesm_name}: not in this archive, omitted")
+                            continue
                         print(f"  {cesm_name}: not found, skipping")
                         failures += 1
                         continue

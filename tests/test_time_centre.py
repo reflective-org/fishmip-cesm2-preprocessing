@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from fishmip_cesm.transform import centre_time, monthly_bounds
+from fishmip_cesm.transform import centre_time, covered_span, monthly_bounds
 
 
 def _end_stamped(bounds_name: str) -> xr.Dataset:
@@ -203,3 +203,11 @@ def test_centring_still_refuses_by_default_without_bounds():
 
     with pytest.raises(ValueError, match="bounds"):
         centre_time(naked)
+
+
+def test_covered_span_steps_back_from_end_stamps():
+    # Stamps mark interval ends, so a file running 2035-02-01 to 2085-01-01
+    # covers January 2035 through December 2084 -- not February to January.
+    stamps = pd.to_datetime(["2035-02-01", "2035-03-01", "2085-01-01"])
+
+    assert covered_span(stamps) == ((2035, 1), (2084, 12))

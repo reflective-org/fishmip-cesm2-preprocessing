@@ -186,6 +186,32 @@ def monthly_bounds(time: xr.DataArray) -> xr.DataArray:
     )
 
 
+def covered_span(time) -> tuple[tuple[int, int], tuple[int, int]]:
+    """The year-months a run of end-stamped monthly means actually covers.
+
+    Needed where the filenames carry no date range, so the only way to know
+    what a file holds is to read its time axis -- and reading it naively is off
+    by a month, because the first stamp belongs to the month before it.
+    """
+    first, last = time[0], time[-1]
+    start = _previous_month_start(first)
+    end = _previous_month_start(last)
+    return (
+        (_year_of(start), _month_of(start)),
+        (_year_of(end), _month_of(end)),
+    )
+
+
+def _year_of(stamp):
+    return _pd.Timestamp(stamp).year if isinstance(stamp, _np.datetime64) else stamp.year
+
+
+def _month_of(stamp):
+    return (
+        _pd.Timestamp(stamp).month if isinstance(stamp, _np.datetime64) else stamp.month
+    )
+
+
 def centre_time(dataset: xr.Dataset, reconstruct: bool = False) -> xr.Dataset:
     """Re-stamp monthly means at the middle of their averaging interval.
 

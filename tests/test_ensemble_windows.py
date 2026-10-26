@@ -2,7 +2,6 @@ import pytest
 
 from fishmip_cesm.ensembles import (
     ANALYSIS_WINDOW,
-    WITHHELD,
     BASELINE_WINDOW,
     ENSEMBLES,
     HISTORICAL_WINDOW,
@@ -95,13 +94,31 @@ def test_every_other_ensemble_is_case_layout():
     assert len(variable_layout) == 1
 
 
-def test_the_mcb_runs_are_withheld_pending_the_right_archive():
-    # The path they were built from holds a different set of Walker
-    # simulations. Mislabelled data is worse published than absent, so the
-    # files were withdrawn and the entry taken out of the live set -- kept in
-    # WITHHELD so the archive details are not lost with it.
-    assert all(e.experiment_id != "g6-1p5k-mcb" for e in ENSEMBLES)
-    assert any(e.experiment_id == "g6-1p5k-mcb" for e in WITHHELD)
+def test_the_mcb_runs_come_from_the_corrected_archive():
+    # The first path held a different set of Walker simulations entirely.
+    mcb = next(e for e in ENSEMBLES if e.experiment_id == "g6-1p5k-mcb")
+
+    assert "hirasawa" in str(mcb.root)
+    assert "walkerl" not in str(mcb.root)
+
+
+def test_the_mcb_archive_declares_what_it_cannot_provide():
+    # photoC_TOT_zint and zoo_loss_zint are absent, so intpp and zoo_loss
+    # cannot be derived. Declaring them keeps a genuinely missing file an
+    # error while not reporting these two as failures on every run.
+    mcb = next(e for e in ENSEMBLES if e.experiment_id == "g6-1p5k-mcb")
+
+    assert set(mcb.absent_variables) == {"photoC_TOT_zint", "zoo_loss_zint"}
+    assert mcb.layout == "flat"
+    assert mcb.reconstruct_bounds is True
+
+
+def test_only_the_mcb_archive_needs_its_bounds_rebuilt():
+    # Reconstruction encodes an assumption about POP's stamping, so it stays
+    # confined to the one archive known to need it.
+    rebuilt = [e.experiment_id for e in ENSEMBLES if e.reconstruct_bounds]
+
+    assert rebuilt == ["g6-1p5k-mcb"]
 
 
 def test_the_waccm_baseline_takes_only_the_members_that_reach_2100():

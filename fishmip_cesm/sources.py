@@ -11,8 +11,15 @@ the CESM2 Large Ensemble is stored:
 
     <root>/<VAR>/<case>.pop.h.<VAR>.<range>.nc
 
-In the variable layout there are no case directories to list, so the members
-have to be recovered from the filenames themselves.
+**flat** -- one directory, one file per member and variable, carrying the whole
+record rather than a chunk of it, which is how the G6-1.5K-MCB runs ship:
+
+    <root>/<case>.pop.h.<VAR>.nc
+
+Neither of the last two has case directories to list, so the members have to be
+recovered from the filenames. The flat layout also has no date range in the
+name, so its span is only knowable by opening a file -- coverage cannot be
+checked from the filesystem alone the way it can for the others.
 """
 
 from fnmatch import fnmatch
@@ -34,6 +41,13 @@ def member_cases(ensemble) -> list[str]:
             for directory in sorted(ensemble.root.glob(ensemble.case_glob))
             if (directory / MONTHLY_SUBPATH).is_dir()
         ]
+    if ensemble.layout == "flat":
+        cases = set()
+        for path in ensemble.root.glob(f"*.pop.h.{_PROBE_VARIABLE}.nc"):
+            case = path.name.removesuffix(f".pop.h.{_PROBE_VARIABLE}.nc")
+            if fnmatch(case, ensemble.case_glob):
+                cases.add(case)
+        return sorted(cases)
     if ensemble.layout == "variable":
         cases = set()
         for path in (ensemble.root / _PROBE_VARIABLE).glob(
@@ -55,6 +69,10 @@ def variable_files(ensemble, case: str, variable: str) -> list[Path]:
         directory = ensemble.root / variable
         # Anchored on the case: one directory holds every member.
         pattern = f"{case}.pop.h.{variable}.*.nc"
+    elif ensemble.layout == "flat":
+        # One file holds the whole record, so there is no range to match.
+        directory = ensemble.root
+        pattern = f"{case}.pop.h.{variable}.nc"
     else:
         raise ValueError(f"unknown layout: {ensemble.layout}")
     return sorted(directory.glob(pattern))
@@ -82,6 +100,19 @@ def member_labels(cases: list[str]) -> list[str]:
     return labels
 
 
+def _span_from_file(path: Path):
+    """Read one file's covered span, for archives with no range in the name."""
+    import xarray as xr
+
+    from fishmip_cesm.transform import covered_span
+
+    try:
+        with xr.open_dataset(path, decode_timedelta=True) as dataset:
+            return covered_span(dataset["time"].values)
+    except (OSError, ValueError, KeyError, IndexError):
+        return None
+
+
 def ensemble_reports(ensemble, required_variables: list[str]) -> list:
     """Coverage reports for every member, in either layout.
 
@@ -97,6 +128,14 @@ def ensemble_reports(ensemble, required_variables: list[str]) -> list:
         for variable in required_variables:
             spans = []
             for path in variable_files(ensemble, case, variable):
+                if ensemble.layout == "flat":
+                    # No range in the name, so the span is only knowable by
+                    # reading the file. Skipping the check instead would pass
+                    # any coverage gap in this ensemble unseen.
+                    span = _span_from_file(path)
+                    if span:
+                        spans.append(span)
+                    continue
                 parsed = parse_timeseries_filename(path.name)
                 if parsed:
                     spans.append((parsed.start, parsed.end))

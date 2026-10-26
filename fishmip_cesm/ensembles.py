@@ -15,6 +15,7 @@ CAMPAIGN = Path("/glade/campaign/cgd/amp/walkerl")
 CMIP6 = Path("/glade/campaign/collections/cmip/CMIP6/timeseries-cmip6")
 # The Large Ensemble stores one directory per variable rather than per member,
 # so its root is the month_1 directory itself. See sources.py.
+MCB = Path("/glade/derecho/scratch/hirasawa/G6-1.5K-MCB")
 CESM2_LE = Path(
     "/glade/campaign/cesm/collections/CESM2-LE/timeseries/ocn/proc/tseries/month_1"
 )
@@ -89,8 +90,17 @@ class Ensemble:
     window: Span = ANALYSIS_WINDOW
     #: "case" -- one directory per member, holding all its variables.
     #: "variable" -- one directory per variable, holding all members, which is
-    #: how the CESM2 Large Ensemble is stored. See sources.py.
+    #: how the CESM2 Large Ensemble is stored.
+    #: "flat" -- one directory, one file per member and variable holding the
+    #: whole record, with no date range in the name. See sources.py.
     layout: str = "case"
+    #: Variables this archive does not carry at all. Declared rather than
+    #: discovered, so a genuinely missing file stays an error: without this,
+    #: every run of such an ensemble reports failures for output nobody expects.
+    absent_variables: tuple[str, ...] = ()
+    #: Whether the monthly means arrive with no time_bound, so their averaging
+    #: intervals have to be rebuilt from the stamps.
+    reconstruct_bounds: bool = False
 
 
 ENSEMBLES = [
@@ -175,24 +185,32 @@ ENSEMBLES = [
         window=HISTORICAL_WINDOW,
         layout="variable",
     ),
-]
-
-
-# Configured but not produced. Kept here rather than deleted so the archive
-# details survive, and out of ENSEMBLES so nothing iterates over them.
-#
-# G6-1.5K-MCB: the walkerl path below holds a different set of Walker
-# simulations, not the G6 MCB runs (Dan Visioni, 2026-10-23). 45 files were
-# published from it under the g6-1p5k-mcb prefix and have been withdrawn.
-# Restoring this needs only the corrected root; the rest should still hold.
-WITHHELD = [
     Ensemble(
         name="G6-1.5K-MCB",
         model="CESM2.1-CAM6",
         source_id="cesm2-cam6",
         experiment_id="g6-1p5k-mcb",
-        # feedback, not feedforward: the scenario uses a PI controller.
-        root=CAMPAIGN / "MCB_feedback_1DOF_smbb",
-        case_glob=f"b.e21.BSSP245smbb.f09_g17.MCB-feedback-1DOF.{_MEMBER}",
+        # The real G6 runs (Hirasawa, 2026-10-26). The earlier walkerl path
+        # held a different set of Walker simulations, and the 45 files
+        # published from it were withdrawn.
+        #
+        # On scratch rather than campaign or GDEX, so it is subject to purge
+        # and belongs to another user: worth processing promptly, and worth
+        # asking for a permanent copy.
+        root=MCB,
+        case_glob=f"BSSP245.G6-1.5K-MCB.massbal.{_MEMBER}",
+        # One directory, one file per member and variable holding the whole
+        # record, and no date range in any name.
+        layout="flat",
+        # Concatenated means carrying no time_bound, so the intervals are
+        # rebuilt from the stamps POP places at the end of each one.
+        reconstruct_bounds=True,
+        # Not in this archive, so intpp and zoo_loss cannot be derived the way
+        # they are everywhere else. intpp from POC_PROD_zint + DOC_prod_zint
+        # integrates to roughly 18 PgC/yr against about 49, which would put one
+        # ensemble's primary production on a different definition with nothing
+        # downstream to flag it. Asked Hirasawa for both; until they arrive
+        # this ensemble carries seven variables.
+        absent_variables=("photoC_TOT_zint", "zoo_loss_zint"),
     ),
 ]

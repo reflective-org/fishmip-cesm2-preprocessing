@@ -1,16 +1,11 @@
 import pytest
 
-from fishmip_cesm.ensembles import ENSEMBLES, WITHHELD
+from fishmip_cesm.ensembles import ENSEMBLES
 from fishmip_cesm.naming import object_key, output_filename
 
 
 def _by_name(fragment: str):
-    # Withheld ensembles are checked too: their identifiers decide the
-    # filenames they will carry when the archive is corrected, and a label
-    # leaking into a filename is just as wrong then as now.
-    return next(
-        e for e in (*ENSEMBLES, *WITHHELD) if fragment.lower() in e.name.lower()
-    )
+    return next(e for e in ENSEMBLES if fragment.lower() in e.name.lower())
 
 
 @pytest.mark.parametrize(
