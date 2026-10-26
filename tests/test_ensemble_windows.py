@@ -168,3 +168,29 @@ def test_the_baseline_spans_the_whole_srm_window():
 
     assert base_start <= srm_start
     assert base_end >= srm_end
+
+
+def test_the_mcb_archive_borrows_the_grid_it_does_not_carry():
+    # Its zarr-converted files hold TEMP and the coordinates, but none of
+    # POP's static fields -- no KMT, so no land mask and no seafloor. KMT is a
+    # property of the gx1v7 grid rather than of a run, and every other
+    # ensemble is on the same grid, so it is borrowed by name rather than
+    # guessed at.
+    mcb = next(e for e in ENSEMBLES if e.experiment_id == "g6-1p5k-mcb")
+
+    assert mcb.grid_from is not None
+    assert any(e.name == mcb.grid_from for e in ENSEMBLES)
+
+
+def test_only_the_mcb_archive_borrows_a_grid():
+    borrowers = [e.experiment_id for e in ENSEMBLES if e.grid_from]
+
+    assert borrowers == ["g6-1p5k-mcb"]
+
+
+def test_no_ensemble_borrows_from_a_borrower():
+    # A chain would resolve to an ensemble that has no grid of its own.
+    lenders = {e.grid_from for e in ENSEMBLES if e.grid_from}
+    for name in lenders:
+        lender = next(e for e in ENSEMBLES if e.name == name)
+        assert lender.grid_from is None

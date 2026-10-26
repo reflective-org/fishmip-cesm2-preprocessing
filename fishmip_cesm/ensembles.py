@@ -102,6 +102,12 @@ class Ensemble:
     #: discovered, so a genuinely missing file stays an error: without this,
     #: every run of such an ensemble reports failures for output nobody expects.
     absent_variables: tuple[str, ...] = ()
+    #: Another ensemble's name, when this archive's files do not carry POP's
+    #: static grid fields. The gx1v7 grid is identical across every run here,
+    #: so KMT can be borrowed -- but named explicitly, because silently
+    #: falling back would use the wrong grid without a word if one ever
+    #: differed.
+    grid_from: str | None = None
     #: A pseudo-variable whose file carries time_bound, for archives that ship
     #: the time axis separately from the fields. Rebuilding bounds from the
     #: stamps instead was measured two hours out against the real ones, so the
@@ -212,5 +218,9 @@ ENSEMBLES = [
         # file (Hirasawa, 2026-10-26), along with photoC_TOT_zint and
         # zoo_loss_zint, so this ensemble now carries all nine variables.
         bounds_from="1D_vars",
+        # The conversion kept TEMP and the coordinates but dropped POP's
+        # static fields, so there is no KMT here for the land mask or the
+        # seafloor. Same gx1v7 grid as every other run, so it is borrowed.
+        grid_from="SSP2-4.5 (CAM6 baseline)",
     ),
 ]

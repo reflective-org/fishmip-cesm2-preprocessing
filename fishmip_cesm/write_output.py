@@ -191,8 +191,29 @@ def _with_sidecar_bounds(dataset, ensemble, case: str):
 
 
 def _grid_file(ensemble, case: str) -> Path:
-    """Any TEMP chunk: POP's static grid fields ride along in all of them."""
+    """Any TEMP chunk: POP's static grid fields ride along in all of them.
+
+    Except where a conversion has stripped them. Those archives name another
+    ensemble to borrow the grid from, which is sound because every run here is
+    on the same gx1v7 grid -- and the horizontal shape is checked against the
+    data before it is used, so a grid that did differ would stop the run
+    rather than quietly mask the wrong cells.
+    """
+    if ensemble.grid_from:
+        lender = next(e for e in ENSEMBLES if e.name == ensemble.grid_from)
+        return variable_files(lender, member_cases(lender)[0], "TEMP")[0]
     return variable_files(ensemble, case, "TEMP")[0]
+
+
+def _check_grid_matches(kmt, field, ensemble) -> None:
+    """Refuse a borrowed grid whose horizontal shape is not the data's."""
+    for axis in ("nlat", "nlon"):
+        if kmt.sizes.get(axis) != field.sizes.get(axis):
+            raise ValueError(
+                f"{ensemble.name}: grid borrowed from {ensemble.grid_from} is "
+                f"{kmt.sizes.get(axis)} along {axis}, the data is "
+                f"{field.sizes.get(axis)}"
+            )
 
 
 def _to_cells(field: xr.DataArray) -> xr.DataArray:
@@ -402,6 +423,8 @@ def main() -> int:
                     _grid_file(ensemble, case), decode_timedelta=True
                 )
                 kmt = grid["KMT"]
+                if ensemble.grid_from:
+                    _check_grid_matches(kmt, temperature, ensemble)
                 ocean = (
                     regrid_variable(
                         "thetao",
