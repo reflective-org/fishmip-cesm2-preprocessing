@@ -30,7 +30,11 @@ CAM6_PICONTROL_WINDOW: Span = ((1801, 1), (2000, 12))
 
 # MCB ends 2069 while SAI runs to 2084, so the three-way comparison caps here.
 # This is the scenario window; historical and piControl carry their own.
-ANALYSIS_WINDOW: Span = ((2035, 1), (2069, 12))
+# Both G6-1.5K scenarios run 2035-2084. The earlier 2069 cutoff was the span of
+# the MCB archive we were first pointed at, which held a different set of
+# simulations entirely -- so it was never a property of the science, and it cost
+# fifteen years on both scenarios. The baselines run to 2100 and cover this.
+ANALYSIS_WINDOW: Span = ((2035, 1), (2084, 12))
 
 # The baseline is not an SRM run. SAI and MCB begin in 2035, but ssp245 begins
 # when the scenario does, in 2015, and runs to 2100 as the archive holds it.

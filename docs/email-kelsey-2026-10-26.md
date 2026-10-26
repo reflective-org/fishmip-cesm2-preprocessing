@@ -25,42 +25,32 @@ An update on the CESM2 forcing, and three things we need your call on.
   re-running it will not replace a stale copy — the old files have to be deleted
   first.
 
-## Three decisions
+## Two decisions
 
-**1. Should the SRM window extend to 2084?**
-Both G6-1.5K-SAI and G6-1.5K-MCB run 2035–2084. Our 2069 cutoff came from the
-MCB archive that turned out to be the wrong simulations, so it rests on nothing.
-Extending gives fifteen more years on both scenarios, and the baselines already
-cover it. Six members to re-run, so it is cheap.
-
-**2. WACCM baseline: five members to 2100, or ten to 2069?**
+**1. WACCM baseline: five members to 2100, or ten to 2069?**
 Only five of the ten WACCM SSP2-4.5 members reach 2100; the rest stop at
 2069/2070. We have published the five, because including the others would halve
 the ensemble at 2070 — the spread would visibly narrow there for no physical
 reason. If spread matters more than span for the SAI comparison, we can publish
 all ten at 2015–2069 instead.
 
-**3. How many members do you actually need?**
+**2. How many members do you actually need?**
 We are producing every member of every ensemble. If FEISTY is only ever run on
 one member per ensemble, most of the 530 GB is bandwidth nobody reads. Nobody
 has specified this either way and we would rather ask than keep guessing.
 
-## Two questions for Hirasawa and Dan
+## Also changing
 
-The correct MCB archive is missing `photoC_TOT_zint` and `zoo_loss_zint`, so
-`intpp` and `zoo_loss` cannot be derived for MCB the way they are for the other
-ensembles. We would rather not compute `intpp` from
-`POC_PROD_zint + DOC_prod_zint`: that sum integrates to roughly 18 PgC/yr
-against about 49 for `photoC_TOT_zint`, so it would put MCB's primary
-production on a different definition from every other ensemble, and nothing
-downstream would flag it.
+**The SRM scenarios now run 2035–2084 rather than 2035–2069.** Both G6-1.5K runs
+cover that period; the 2069 cutoff came from the MCB archive we were first
+pointed at, which held a different set of simulations, so it was never a
+property of the science. SAI and MCB are being rewritten over the longer span,
+and the baselines already cover it. If you have analysis set up against
+2035–2069, the longer files contain it — subset rather than re-run.
 
-- Are `photoC_TOT_zint` and `zoo_loss_zint` available for these runs anywhere?
-- Are the raw POP history files kept, rather than the concatenated set? Those
-  would also carry the time bounds, which the current files lack.
-
-Unless we hear otherwise, we will publish MCB with the other seven variables and
-add those two when they are available.
+Haruki has supplied the correct MCB archive along with `photoC_TOT_zint`,
+`zoo_loss_zint` and the time bounds, so MCB carries the full nine variables on
+the same definitions as everything else.
 
 ## Still open from earlier
 

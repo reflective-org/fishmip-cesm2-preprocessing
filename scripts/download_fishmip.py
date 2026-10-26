@@ -32,9 +32,9 @@ BASE = "https://pub-d127229e707d485c80965ab41706e316.r2.dev/fishmip"
 # named with the same four-digit padding the time axis uses.
 ENSEMBLES = [
     ("cesm2-waccm6", "ssp245", 5, 2015, 2100),  # baseline for SAI; see note
-    ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2069),
+    ("cesm2-waccm6", "g6-1p5k-sai", 3, 2035, 2084),
     ("cesm2-cam6", "ssp245", 16, 2015, 2100),  # baseline for MCB
-    ("cesm2-cam6", "g6-1p5k-mcb", 3, 2035, 2069),
+    ("cesm2-cam6", "g6-1p5k-mcb", 3, 2035, 2084),
     ("cesm2-waccm6", "historical", 3, 1850, 2014),
     ("cesm2-cam6", "historical", 1, 1850, 2014),
     ("cesm2-waccm6", "picontrol", 1, 300, 499),

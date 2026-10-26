@@ -150,3 +150,21 @@ def test_the_cam6_baseline_is_not_restricted():
 
     assert cam6.window == BASELINE_WINDOW
     assert cam6.case_glob.endswith("[0-9][0-9][0-9]")
+
+
+def test_the_srm_window_runs_to_the_end_of_both_scenarios():
+    # Both G6-1.5K runs cover 2035-2084. The earlier 2069 cutoff came from the
+    # MCB archive that turned out to be a different set of simulations, so it
+    # was never a property of the science.
+    assert ANALYSIS_WINDOW == ((2035, 1), (2084, 12))
+    assert months_in(ANALYSIS_WINDOW) == 600
+
+
+def test_the_baseline_spans_the_whole_srm_window():
+    # Each SRM scenario is compared against its matched baseline, so the
+    # baseline has to cover every month the scenarios do.
+    ((srm_start, _), (srm_end, _)) = ANALYSIS_WINDOW
+    ((base_start, _), (base_end, _)) = BASELINE_WINDOW
+
+    assert base_start <= srm_start
+    assert base_end >= srm_end
