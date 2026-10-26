@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import xarray as xr
 
-from fishmip_cesm.transform import centre_time
+from fishmip_cesm.transform import centre_time, monthly_bounds
 
 
 def _end_stamped(bounds_name: str) -> xr.Dataset:
@@ -146,3 +146,60 @@ def test_a_scenario_centre_lands_on_a_whole_second():
     nanoseconds = centred.time.values.astype("datetime64[ns]").astype("int64")
     remainder = nanoseconds % 1_000_000_000
     assert not remainder.any(), f"sub-second remainder {remainder} ns"
+
+
+def test_bounds_are_reconstructed_from_end_of_interval_stamps():
+    # Some archives ship concatenated monthly means with no time_bound at all.
+    # POP stamps a monthly mean at the end of its interval, so the mean dated
+    # 2035-02-01 covers January: the bounds are recoverable from the stamp.
+    stamps = pd.to_datetime(["2035-02-01", "2035-03-01", "2035-04-01"])
+    dataset = xr.Dataset(
+        {"TEMP": ("time", [1.0, 2.0, 3.0])}, coords={"time": stamps}
+    )
+
+    recovered = monthly_bounds(dataset["time"])
+
+    np.testing.assert_array_equal(
+        recovered.isel(d2=1).values, stamps.values
+    )
+    np.testing.assert_array_equal(
+        recovered.isel(d2=0).values,
+        pd.to_datetime(["2035-01-01", "2035-02-01", "2035-03-01"]).values,
+    )
+
+
+def test_reconstructed_bounds_match_the_real_ones():
+    # The reconstruction is only trustworthy if it reproduces the bounds an
+    # archive that has them actually carries. Same stamps, same answer.
+    truth = _end_stamped("time_bound")
+
+    recovered = monthly_bounds(truth["time"])
+
+    np.testing.assert_array_equal(
+        recovered.values, truth["time_bound"].values
+    )
+
+
+def test_centring_uses_reconstructed_bounds_when_asked():
+    naked = xr.Dataset(
+        {"TEMP": ("time", [1.0, 2.0])},
+        coords={"time": pd.to_datetime(["2035-02-01", "2035-03-01"])},
+    )
+
+    centred = centre_time(naked, reconstruct=True)
+
+    # January's mean must read as January, as it does with real bounds.
+    assert str(centred.time.values[0])[:7] == "2035-01"
+    assert str(centred.time.values[1])[:7] == "2035-02"
+
+
+def test_centring_still_refuses_by_default_without_bounds():
+    # Reconstruction encodes an assumption about POP's convention, so it is
+    # opt-in per archive rather than a silent fallback everywhere.
+    naked = xr.Dataset(
+        {"TEMP": ("time", [1.0])},
+        coords={"time": pd.to_datetime(["2035-02-01"])},
+    )
+
+    with pytest.raises(ValueError, match="bounds"):
+        centre_time(naked)

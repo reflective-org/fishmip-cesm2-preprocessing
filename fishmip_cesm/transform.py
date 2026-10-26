@@ -1,6 +1,7 @@
 """Derive FishMIP variables from raw CESM POP/MARBL fields."""
 
-import numpy as np
+import numpy as _np
+import pandas as _pd
 import xarray as xr
 
 
@@ -141,7 +142,51 @@ def fishmip_units(fishmip_name: str) -> str:
 _BOUNDS_NAMES = ("time_bound", "time_bnds", "time_bounds")
 
 
-def centre_time(dataset: xr.Dataset) -> xr.Dataset:
+def _month_start(stamp):
+    """The first instant of the month a timestamp falls in."""
+    if isinstance(stamp, _np.datetime64) or not hasattr(stamp, "calendar"):
+        return _np.datetime64(str(_pd.Timestamp(stamp).to_period("M")), "ns")
+    import cftime
+
+    return type(stamp)(stamp.year, stamp.month, 1)
+
+
+def _previous_month_start(stamp):
+    """The first instant of the month before the one a timestamp falls in."""
+    start = _month_start(stamp)
+    if isinstance(start, _np.datetime64):
+        period = _pd.Timestamp(start).to_period("M") - 1
+        return _np.datetime64(str(period), "ns")
+    return type(stamp)(
+        stamp.year - 1 if stamp.month == 1 else stamp.year,
+        12 if stamp.month == 1 else stamp.month - 1,
+        1,
+    )
+
+
+def monthly_bounds(time: xr.DataArray) -> xr.DataArray:
+    """Rebuild the averaging intervals of monthly means that ship without them.
+
+    Some archives distribute concatenated monthly means with no `time_bound`:
+    the G6-1.5K-MCB runs are one. POP stamps a monthly mean at the *end* of its
+    interval, so a mean dated 2035-02-01 covers January, and the interval is
+    (first of the previous month, the stamp itself) -- recoverable from the
+    stamp alone, with no need for its neighbours.
+
+    This encodes a convention rather than reading one, so it is verified
+    against archives that do carry bounds: reconstructing from their stamps
+    reproduces their `time_bound` exactly. It stays opt-in per archive even so,
+    because an archive that stamps differently would be silently shifted a
+    month, which is the error this whole mechanism exists to prevent.
+    """
+    stamps = time.values
+    lower = _np.array([_previous_month_start(s) for s in stamps], dtype=stamps.dtype)
+    return xr.DataArray(
+        _np.stack([lower, stamps], axis=1), dims=("time", "d2"), name="time_bound"
+    )
+
+
+def centre_time(dataset: xr.Dataset, reconstruct: bool = False) -> xr.Dataset:
     """Re-stamp monthly means at the middle of their averaging interval.
 
     POP labels a monthly mean with the *end* of its interval, so January's mean
@@ -156,13 +201,16 @@ def centre_time(dataset: xr.Dataset) -> xr.Dataset:
     declared = dataset["time"].attrs.get("bounds")
     candidates = (declared, *_BOUNDS_NAMES) if declared else _BOUNDS_NAMES
     name = next((n for n in candidates if n and n in dataset.variables), None)
-    if name is None:
+    if name is None and reconstruct:
+        bounds = monthly_bounds(dataset["time"])
+    elif name is None:
         raise ValueError(
             "cannot centre time: no bounds variable "
-            f"(looked for {', '.join(_BOUNDS_NAMES)})"
+            f"(looked for {', '.join(_BOUNDS_NAMES)}). Pass reconstruct=True "
+            "for an archive known to stamp monthly means at interval end."
         )
-
-    bounds = dataset[name]
+    else:
+        bounds = dataset[name]
     edge_dim = [d for d in bounds.dims if d != "time"][0]
 
     lower = bounds.isel({edge_dim: 0})
@@ -204,7 +252,7 @@ def _midpoint(lower, upper):
         units = "seconds since 0001-01-01"
         start = cftime.date2num(lower, units, calendar)
         end = cftime.date2num(upper, units, calendar)
-        middle = np.round((start + end) / 2)
+        middle = _np.round((start + end) / 2)
         return cftime.num2date(middle, units, calendar)
 
     start = lower.astype("datetime64[ns]").astype("int64")
