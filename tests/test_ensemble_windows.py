@@ -102,23 +102,28 @@ def test_the_mcb_runs_come_from_the_corrected_archive():
     assert "walkerl" not in str(mcb.root)
 
 
-def test_the_mcb_archive_declares_what_it_cannot_provide():
-    # photoC_TOT_zint and zoo_loss_zint are absent, so intpp and zoo_loss
-    # cannot be derived. Declaring them keeps a genuinely missing file an
-    # error while not reporting these two as failures on every run.
+def test_the_mcb_archive_reads_its_bounds_from_a_sidecar():
+    # Its fields carry no time_bound; it ships in a 1D_vars file alongside
+    # them. Rebuilding bounds from the stamps instead measured two hours out
+    # against the real ones, which would have shifted this ensemble against
+    # every other by an hour.
     mcb = next(e for e in ENSEMBLES if e.experiment_id == "g6-1p5k-mcb")
 
-    assert set(mcb.absent_variables) == {"photoC_TOT_zint", "zoo_loss_zint"}
+    assert mcb.bounds_from == "1D_vars"
     assert mcb.layout == "flat"
-    assert mcb.reconstruct_bounds is True
 
 
-def test_only_the_mcb_archive_needs_its_bounds_rebuilt():
-    # Reconstruction encodes an assumption about POP's stamping, so it stays
-    # confined to the one archive known to need it.
-    rebuilt = [e.experiment_id for e in ENSEMBLES if e.reconstruct_bounds]
+def test_every_ensemble_can_provide_every_variable():
+    # Haruki added photoC_TOT_zint and zoo_loss_zint to the MCB archive, so
+    # nothing is short of a variable any more and intpp stays on one
+    # definition across the whole set.
+    assert all(e.absent_variables == () for e in ENSEMBLES)
 
-    assert rebuilt == ["g6-1p5k-mcb"]
+
+def test_only_the_mcb_archive_keeps_its_bounds_elsewhere():
+    sidecar = [e.experiment_id for e in ENSEMBLES if e.bounds_from]
+
+    assert sidecar == ["g6-1p5k-mcb"]
 
 
 def test_the_waccm_baseline_takes_only_the_members_that_reach_2100():

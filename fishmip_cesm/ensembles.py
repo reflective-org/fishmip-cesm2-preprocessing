@@ -98,9 +98,11 @@ class Ensemble:
     #: discovered, so a genuinely missing file stays an error: without this,
     #: every run of such an ensemble reports failures for output nobody expects.
     absent_variables: tuple[str, ...] = ()
-    #: Whether the monthly means arrive with no time_bound, so their averaging
-    #: intervals have to be rebuilt from the stamps.
-    reconstruct_bounds: bool = False
+    #: A pseudo-variable whose file carries time_bound, for archives that ship
+    #: the time axis separately from the fields. Rebuilding bounds from the
+    #: stamps instead was measured two hours out against the real ones, so the
+    #: sidecar is read rather than the convention assumed.
+    bounds_from: str | None = None
 
 
 ENSEMBLES = [
@@ -202,15 +204,9 @@ ENSEMBLES = [
         # One directory, one file per member and variable holding the whole
         # record, and no date range in any name.
         layout="flat",
-        # Concatenated means carrying no time_bound, so the intervals are
-        # rebuilt from the stamps POP places at the end of each one.
-        reconstruct_bounds=True,
-        # Not in this archive, so intpp and zoo_loss cannot be derived the way
-        # they are everywhere else. intpp from POC_PROD_zint + DOC_prod_zint
-        # integrates to roughly 18 PgC/yr against about 49, which would put one
-        # ensemble's primary production on a different definition with nothing
-        # downstream to flag it. Asked Hirasawa for both; until they arrive
-        # this ensemble carries seven variables.
-        absent_variables=("photoC_TOT_zint", "zoo_loss_zint"),
+        # The fields carry no time_bound; it ships beside them in a 1D_vars
+        # file (Hirasawa, 2026-10-26), along with photoC_TOT_zint and
+        # zoo_loss_zint, so this ensemble now carries all nine variables.
+        bounds_from="1D_vars",
     ),
 ]

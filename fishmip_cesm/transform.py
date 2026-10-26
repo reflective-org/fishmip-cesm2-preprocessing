@@ -164,28 +164,6 @@ def _previous_month_start(stamp):
     )
 
 
-def monthly_bounds(time: xr.DataArray) -> xr.DataArray:
-    """Rebuild the averaging intervals of monthly means that ship without them.
-
-    Some archives distribute concatenated monthly means with no `time_bound`:
-    the G6-1.5K-MCB runs are one. POP stamps a monthly mean at the *end* of its
-    interval, so a mean dated 2035-02-01 covers January, and the interval is
-    (first of the previous month, the stamp itself) -- recoverable from the
-    stamp alone, with no need for its neighbours.
-
-    This encodes a convention rather than reading one, so it is verified
-    against archives that do carry bounds: reconstructing from their stamps
-    reproduces their `time_bound` exactly. It stays opt-in per archive even so,
-    because an archive that stamps differently would be silently shifted a
-    month, which is the error this whole mechanism exists to prevent.
-    """
-    stamps = time.values
-    lower = _np.array([_previous_month_start(s) for s in stamps], dtype=stamps.dtype)
-    return xr.DataArray(
-        _np.stack([lower, stamps], axis=1), dims=("time", "d2"), name="time_bound"
-    )
-
-
 def covered_span(time) -> tuple[tuple[int, int], tuple[int, int]]:
     """The year-months a run of end-stamped monthly means actually covers.
 
@@ -212,7 +190,7 @@ def _month_of(stamp):
     )
 
 
-def centre_time(dataset: xr.Dataset, reconstruct: bool = False) -> xr.Dataset:
+def centre_time(dataset: xr.Dataset) -> xr.Dataset:
     """Re-stamp monthly means at the middle of their averaging interval.
 
     POP labels a monthly mean with the *end* of its interval, so January's mean
@@ -227,16 +205,13 @@ def centre_time(dataset: xr.Dataset, reconstruct: bool = False) -> xr.Dataset:
     declared = dataset["time"].attrs.get("bounds")
     candidates = (declared, *_BOUNDS_NAMES) if declared else _BOUNDS_NAMES
     name = next((n for n in candidates if n and n in dataset.variables), None)
-    if name is None and reconstruct:
-        bounds = monthly_bounds(dataset["time"])
-    elif name is None:
+    if name is None:
         raise ValueError(
             "cannot centre time: no bounds variable "
-            f"(looked for {', '.join(_BOUNDS_NAMES)}). Pass reconstruct=True "
-            "for an archive known to stamp monthly means at interval end."
+            f"(looked for {', '.join(_BOUNDS_NAMES)})"
         )
-    else:
-        bounds = dataset[name]
+
+    bounds = dataset[name]
     edge_dim = [d for d in bounds.dims if d != "time"][0]
 
     lower = bounds.isel({edge_dim: 0})

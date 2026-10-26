@@ -154,13 +154,36 @@ def _open_window(ensemble, case: str, variable: str, window) -> xr.DataArray | N
         decode_timedelta=True,
         chunks={"time": time_chunk(levels)},
     )
+    if ensemble.bounds_from:
+        dataset = _with_sidecar_bounds(dataset, ensemble, case)
     # Centre before subsetting. POP stamps a monthly mean at the end of its
     # interval, so slicing the raw stamps shifts every month by one and drops
     # the last month of the window.
-    return subset_to_window(
-        centre_time(dataset, reconstruct=ensemble.reconstruct_bounds)[variable],
-        window,
-    )
+    return subset_to_window(centre_time(dataset)[variable], window)
+
+
+def _with_sidecar_bounds(dataset, ensemble, case: str):
+    """Attach the time bounds an archive ships separately from its fields.
+
+    Refuses a mismatch rather than letting xarray align the two: bounds from a
+    different run of the same model would still broadcast, and would silently
+    re-date every field.
+    """
+    paths = variable_files(ensemble, case, ensemble.bounds_from)
+    if not paths:
+        raise ValueError(
+            f"{case}: no {ensemble.bounds_from} file holding the time bounds"
+        )
+    sidecar = xr.open_dataset(paths[0], decode_timedelta=True)
+    name = next((n for n in sidecar.variables if "bound" in n or "bnds" in n), None)
+    if name is None:
+        raise ValueError(f"{paths[0].name} carries no bounds variable")
+    if sidecar.sizes.get("time") != dataset.sizes.get("time"):
+        raise ValueError(
+            f"{paths[0].name} has {sidecar.sizes.get('time')} times, "
+            f"the fields have {dataset.sizes.get('time')}"
+        )
+    return dataset.assign({name: sidecar[name]})
 
 
 def _grid_file(ensemble, case: str) -> Path:

@@ -47,10 +47,7 @@ SCENARIOS = sorted({experiment for _, experiment, _, _, _ in ENSEMBLES})
 # the fields they are derived from. Requesting these would simply 404, and a
 # download that reports failures for files that were never meant to exist
 # teaches people to ignore its errors.
-OMITTED = {
-    # photoC_TOT_zint and zoo_loss_zint are not in the G6-1.5K-MCB archive.
-    ("cesm2-cam6", "g6-1p5k-mcb"): ("intpp", "zoo-loss"),
-}
+OMITTED = {}
 
 VARIABLES = [
     "intpp",  # primary production
