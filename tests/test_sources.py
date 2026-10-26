@@ -245,3 +245,20 @@ def test_a_flat_member_label_is_its_trailing_number(tmp_path):
     ensemble = _flat_archive(tmp_path)
 
     assert member_labels(member_cases(ensemble)) == ["001", "002", "003"]
+
+
+def test_the_writer_finds_the_flat_files_the_catalogue_does(tmp_path):
+    # verify_inputs and the writer have to agree about where a member's files
+    # are. They did not: the catalogue learned the flat layout and the writer's
+    # path selection did not, so an ensemble that verified clean reported
+    # "no TEMP" the moment it was asked to write.
+    from fishmip_cesm.write_output import _window_paths
+
+    ensemble = _flat_archive(tmp_path)
+    case = "BSSP245.G6-1.5K-MCB.massbal.001"
+
+    catalogued = variable_files(ensemble, case, "TEMP")
+    selected = _window_paths(ensemble, case, "TEMP", ((2035, 1), (2084, 12)))
+
+    assert catalogued, "the fixture should contain a TEMP file"
+    assert selected == catalogued

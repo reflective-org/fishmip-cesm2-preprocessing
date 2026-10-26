@@ -128,6 +128,10 @@ def _fishmip_name(cesm_name: str) -> str:
 
 def _window_paths(ensemble, case: str, variable: str, window) -> list[Path]:
     """The timeseries chunks covering the window, without opening any of them."""
+    if ensemble.layout == "flat":
+        # One file holds the whole record and its name carries no range, so
+        # there is nothing to select on. subset_to_window does the clipping.
+        return variable_files(ensemble, case, variable)
     (start_year, _), (end_year, _) = window
     covering = []
     for path in variable_files(ensemble, case, variable):
