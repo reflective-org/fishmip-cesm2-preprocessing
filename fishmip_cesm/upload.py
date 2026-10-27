@@ -163,7 +163,9 @@ def main() -> int:
         if not needs_upload(local, remote_size, stat.st_mtime, remote_modified):
             skipped += 1
             continue
-        print(f"  {path.name} -> {key} ({local / 1e9:.2f} GB)")
+        # Flushed: a long upload redirected to a file otherwise shows nothing
+        # for an hour, which is indistinguishable from a hang.
+        print(f"  {path.name} -> {key} ({local / 1e9:.2f} GB)", flush=True)
         client.upload_file(str(path), BUCKET, key)
         sent += 1
 
