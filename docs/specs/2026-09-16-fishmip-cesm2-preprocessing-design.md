@@ -22,15 +22,29 @@ timeseries generation is needed.
 
 | Scenario | Model | Forcing | Members | Range | Path |
 |---|---|---|---|---|---|
-| SSP2-4.5 (WACCM baseline) | CESM2-WACCM6 | cmip6 | 10 | 2015–2100 ✅ | `…/gdex/data/d651045/CESM2-WACCM-SSP245/b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{001..010}/` |
+| SSP2-4.5 (WACCM baseline) | CESM2-WACCM6 | cmip6 | 5 ² | 2015–2100 ✅ | `…/gdex/data/d651045/CESM2-WACCM-SSP245/b.e21.BWSSP245cmip6.f09_g17.CMIP6-SSP2-4.5-WACCM.{001..005}/` |
 | G6-1.5K-SAI | CESM2-WACCM6 | — | 3 | 2035–2084 ✅ | `…/gdex/data/d651059/ARISE-SAI-1.5/b.e21.BW.f09_g17.SSP245-G6-1p5K-SAI.{001,002,003}/` |
-| G6-1.5K-MCB | CESM2.1-CAM6 | smbb | 5 | 2035–2069 ✅ | `/glade/campaign/cgd/amp/walkerl/MCB_feedback_1DOF_smbb/b.e21.BSSP245smbb.f09_g17.MCB-feedback-1DOF.{001..005}/` |
+| G6-1.5K-MCB | CESM2.1-CAM6 | — | 3 ³ | 2035–2084 ✅ | `/glade/derecho/scratch/hirasawa/G6-1.5K-MCB/BSSP245.G6-1.5K-MCB.massbal.{001,002,003}.pop.h.<VAR>.nc` |
 | SSP2-4.5 (CAM6 baseline) | CESM2.1-CAM6 | smbb | 16 ¹ | 2015–2100 ✅ | `…/gdex/data/d651073/b.e21.BSSP245smbb.f09_g17/b.e21.BSSP245smbb.f09_g17.{001..0NN}/` |
 
 GLADE prefix for the GDEX collections is `/glade/campaign/collections/`. All eight MARBL
 biogeochemistry variables plus `TEMP` are verified present, with continuous monthly
-coverage over 2035-01–2069-12, for every member of all four ensembles. Verified on
-Derecho 2026-09-18 by `fishmip-verify-inputs`; re-run it rather than trusting this table.
+coverage over each ensemble's own window, for every member. Verified on Derecho
+2026-10-26 by `fishmip-verify-inputs`; re-run it rather than trusting this table. The
+historical and piControl ensembles added on 2026-10-09 are described below.
+
+² Members 006–010 stop at 2069 or 2070 and cannot cover the baseline window. Carrying
+them at the shorter span would halve the ensemble at 2070, narrowing its spread for a
+reason that is not physical, so the baseline publishes the five that reach 2100
+(John Orcutt, 2026-10-23).
+
+³ The MCB runs moved archives. The `walkerl` path this table first carried held a
+different set of Walker simulations rather than the G6 runs (Dan Visioni, 2026-10-23),
+and the 45 files published from it were withdrawn. The replacement (Hirasawa,
+2026-10-26) is a flat directory of whole-record files with no date range in the name,
+no `time_bound` in the fields — it ships beside them in a `1D_vars` file — and none of
+POP's static grid fields, so `KMT` is borrowed from the CAM6 baseline. It sits on
+scratch rather than campaign or GDEX, so it is subject to purge.
 
 Note the CAM6 baseline nests one extra level: the case directories sit inside a container
 directory of the same name, not directly under `d651073/`.
@@ -253,18 +267,30 @@ time axis (2026-09-24). Every variable passed the gate:
 
 | Ensemble | Global NPP after regrid | vs. matched baseline |
 |---|---|---|
-| SSP2-4.5 (WACCM baseline) | 49.5292 PgC/yr | — |
-| G6-1.5K-SAI | 49.2522 | −0.277 |
-| SSP2-4.5 (CAM6 baseline) | 49.7430 | — |
-| G6-1.5K-MCB | 49.2210 | −0.522 |
+| SSP2-4.5 (WACCM baseline) | 49.53 PgC/yr | — |
+| G6-1.5K-SAI | 49.25 | −0.28 |
+| SSP2-4.5 (CAM6 baseline) | 49.74 | — |
+| G6-1.5K-MCB | 48.53 | **−1.21** |
 
 Both SRM scenarios sit below their matched baselines. One year and one member, so this is
 not a result — but it is the comparison the project exists to make, and the pipeline now
 produces it on a correct time axis.
 
 Note what the matched-baseline requirement does here: comparing MCB against the *WACCM*
-baseline would give −0.308 rather than −0.522, and against no baseline at all the number
+baseline would give −1.00 rather than −1.21, and against no baseline at all the number
 means nothing. At this magnitude the pairing changes the answer.
+
+**The MCB figure changed when the archive did (2026-10-27).** It previously read 49.2210,
+a shortfall of −0.522, measured against `/glade/campaign/cgd/amp/walkerl/
+MCB_feedback_1DOF_smbb`. That path turned out to hold a different set of Walker
+simulations, not the G6 runs (Dan Visioni, 2026-10-23); 45 files published from it were
+withdrawn. The correct archive (Hirasawa, 2026-10-26) gives 48.53 and a shortfall more
+than twice as large. The sign survived the correction; the magnitude did not, so any
+figure circulated before that date should be retracted rather than adjusted.
+
+SAI's 49.25 is unchanged to four significant figures across the re-run at the longer
+window, which is the control: it says the pipeline reproduces itself and the MCB shift is
+the data, not the processing.
 
 An earlier version of this table gave 49.31 / 49.21 / 49.72 / 49.37. Those were measured
 before the time-centring fix, so each "2040" mean actually averaged 2039-12 to 2040-11.
@@ -312,8 +338,12 @@ introduce them.
 Measured in the 2026-09-24 dry run (WACCM baseline, 2040, surface), against each field's
 maximum: `no3` −1.3e-4 (0.6%), `phydiat` −7.4e-4 (1.3%), `phyc` −2.2e-7 (0.003%).
 
-Over the full window and depth (MCB member 001, 2035–2069), clipping touches more cells
-than a single surface year suggests but still almost no mass:
+Over the full window and depth, clipping touches more cells than a single surface year
+suggests but still almost no mass. Measured on MCB member 001 over 2035–2069 — from the
+`walkerl` archive, which was later found to be a different set of simulations, so treat
+these as indicative of scale rather than as figures for the published MCB data. The
+clip rates logged during the 2026-10 runs are in the same range, with `phydiat` running
+higher on the long historical and piControl members (~0.45%) than on the scenarios:
 
 | Variable | Cells clipped | Field removed | Most negative |
 |---|---|---|---|
@@ -481,16 +511,24 @@ biomass-burning treatments layered on top of the model-configuration difference.
 which variant the G6-1.5K-SAI cases use so the SAI/baseline pairing is at least
 internally consistent.
 
-### 3. Common analysis window is 2035–2069
+### 3. Common analysis window — resolved, 2035–2084
 
-MCB ends 2069. SAI runs to 2084 and the spec's deployment window is 2035–2085, so the
-last ~15 years of SAI deployment has no MCB counterpart.
+This was recorded as a conflict: MCB appeared to end in 2069 while SAI ran to 2084,
+leaving the last fifteen years of SAI deployment without an MCB counterpart, and the
+pipeline capped both at 2069 to keep them comparable.
 
-Options: cap the three-way comparison at 2035–2069 and analyse SAI-only for 2070–2084;
-or cap everything at 2069. This affects how the "amplify vs. mitigate" framing in the
-research objectives is stated.
+The premise was wrong. 2069 was the span of the `walkerl` archive, which held a
+different set of simulations; the real G6-1.5K-MCB runs cover 2035–2084, exactly as SAI
+does. The cutoff was never a property of the science, and it cost fifteen years on both
+scenarios for nothing.
 
-*Owner: Kelsey Roberts, Daniele Visioni.*
+Both now run 2035–2084 (John Orcutt, 2026-10-23), and the baselines run 2015–2100, so
+they span it. Anyone with analysis set up against 2035–2069 can subset; the reverse
+would have needed a re-run.
+
+The lesson worth keeping: a constraint inferred from one archive's extent is only as
+good as the archive. This one was recorded as a scientific trade-off for five weeks,
+with an owner assigned, when it was a data-provenance error.
 
 ### 4. Output destination — resolved
 
