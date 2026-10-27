@@ -18,6 +18,7 @@ a command line.
 
 import argparse
 import sys
+from fnmatch import fnmatch
 
 from fishmip_cesm.naming import BUCKET, PREFIX
 from fishmip_cesm.upload import _client, credentials_from_env
@@ -41,6 +42,18 @@ def object_prefix(scenario: str) -> str:
     return f"{PREFIX}/{scenario}/"
 
 
+def keys_to_remove(keys: list[str], pattern: str | None) -> list[str]:
+    """Narrow a prefix listing to the filenames that match.
+
+    A scenario prefix can hold more than one version of the same data -- the
+    baselines carry both 2035-2069 and 2015-2100 -- so withdrawing by prefix
+    alone would take the current files along with the superseded ones.
+    """
+    if pattern is None:
+        return list(keys)
+    return [key for key in keys if fnmatch(key.rsplit("/", 1)[-1], pattern)]
+
+
 def _keys_under(client, prefix: str) -> list[str]:
     keys, token = [], None
     while True:
@@ -56,6 +69,13 @@ def _keys_under(client, prefix: str) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", required=True)
+    parser.add_argument(
+        "--matching",
+        help=(
+            "only withdraw objects whose filename matches this glob, e.g. "
+            "'*_2035_2069.nc'. Without it the whole scenario goes."
+        ),
+    )
     parser.add_argument(
         "--confirm",
         action="store_true",
@@ -76,9 +96,10 @@ def main() -> int:
         return 2
 
     client = _client(credentials)
-    keys = _keys_under(client, prefix)
+    keys = keys_to_remove(_keys_under(client, prefix), args.matching)
     if not keys:
-        print(f"nothing published under s3://{BUCKET}/{prefix}")
+        shown = f" matching {args.matching}" if args.matching else ""
+        print(f"nothing published under s3://{BUCKET}/{prefix}{shown}")
         return 0
 
     print(f"{len(keys)} object(s) under s3://{BUCKET}/{prefix}\n")
