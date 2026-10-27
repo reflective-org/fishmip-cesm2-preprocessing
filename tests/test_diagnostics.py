@@ -42,3 +42,15 @@ def test_area_weighted_mean_excludes_land_from_both_field_and_area():
     area = xr.DataArray([1.0e6, 9.0e6, 3.0e6], dims="cell")
 
     assert area_weighted_mean(field, area) == pytest.approx(17.5)
+
+
+def test_published_grid_areas_sum_to_the_surface_of_the_earth():
+    # The published files carry no areacello, so a global integral has to
+    # compute cell areas from the grid itself. If that formula is wrong every
+    # integral built on it is wrong by the same factor, which is precisely the
+    # kind of error these checks exist to catch.
+    from fishmip_cesm.diagnostics import onedeg_cell_area
+
+    total = float(onedeg_cell_area().sum())
+
+    assert abs(total - 5.10e14) / 5.10e14 < 0.001
