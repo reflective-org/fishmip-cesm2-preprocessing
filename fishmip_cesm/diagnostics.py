@@ -37,21 +37,45 @@ def area_weighted_mean(field: xr.DataArray, area: xr.DataArray) -> float:
 _EARTH_RADIUS_M = 6.371e6
 
 
+def cell_area_like(field: xr.DataArray) -> xr.DataArray:
+    """Cell areas, in m^2, on the grid the field itself is written on.
+
+    Built from the field's own coordinates rather than an assumed convention.
+    A standalone area array on 0.5..359.5 multiplied against a field on
+    -179.5..179.5 describes the same grid written two ways, but xarray joins
+    on coordinates and keeps only the overlap -- so the integral comes out at
+    roughly half and looks merely surprising rather than broken.
+
+    A regular lon/lat cell spans R^2 * dlon * (sin(lat_north) - sin(lat_south)),
+    which is exact; the cos(lat) approximation overstates area at the poles.
+    """
+    latitude = field["lat"]
+    longitude = field["lon"]
+    dlat = float(abs(latitude[1] - latitude[0]))
+    dlon = float(abs(longitude[1] - longitude[0]))
+    south = np.deg2rad(latitude.values - dlat / 2)
+    north = np.deg2rad(latitude.values + dlat / 2)
+    band = _EARTH_RADIUS_M**2 * np.deg2rad(dlon) * (np.sin(north) - np.sin(south))
+    return xr.DataArray(
+        np.repeat(band[:, None], longitude.size, axis=1),
+        dims=("lat", "lon"),
+        coords={"lat": latitude, "lon": longitude},
+        name="areacello",
+    )
+
+
 def onedeg_cell_area() -> xr.DataArray:
     """Cell areas of the published 1 degree grid, in m^2.
 
-    The published files carry no areacello, so a global integral has to derive
-    areas from the grid. On a regular lon/lat grid a cell spans
-    R^2 * dlon * (sin(lat_north) - sin(lat_south)), which is exact rather than
-    the cos(lat) approximation -- the difference matters most at the poles,
-    where the approximation overstates area.
+    Only for a grid whose coordinates are not to hand; prefer cell_area_like,
+    which cannot disagree with the field it is multiplied against.
     """
-    latitude = np.arange(-89.5, 90.0, 1.0)
-    edges = np.deg2rad(np.arange(-90.0, 90.5, 1.0))
-    band = _EARTH_RADIUS_M**2 * np.deg2rad(1.0) * np.diff(np.sin(edges))
-    return xr.DataArray(
-        np.repeat(band[:, None], 360, axis=1),
+    template = xr.DataArray(
+        np.zeros((180, 360)),
         dims=("lat", "lon"),
-        coords={"lat": latitude, "lon": np.arange(0.5, 360.0, 1.0)},
-        name="areacello",
+        coords={
+            "lat": np.arange(-89.5, 90.0, 1.0),
+            "lon": np.arange(0.5, 360.0, 1.0),
+        },
     )
+    return cell_area_like(template)

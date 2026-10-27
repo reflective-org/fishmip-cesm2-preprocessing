@@ -54,3 +54,41 @@ def test_published_grid_areas_sum_to_the_surface_of_the_earth():
     total = float(onedeg_cell_area().sum())
 
     assert abs(total - 5.10e14) / 5.10e14 < 0.001
+
+
+def test_an_integral_does_not_silently_drop_mismatched_cells():
+    # Areas built on 0.5..359.5 and a field on -179.5..179.5 are the same grid
+    # written two ways, but xarray's inner join keeps only the overlap and the
+    # integral comes out near half -- plausible enough to publish. The areas
+    # must come from the field's own coordinates.
+    from fishmip_cesm.diagnostics import area_weighted_total, cell_area_like
+
+    field = xr.DataArray(
+        np.ones((180, 360)),
+        dims=("lat", "lon"),
+        coords={
+            "lat": np.arange(-89.5, 90.0, 1.0),
+            "lon": np.arange(-179.5, 180.0, 1.0),
+        },
+    )
+
+    total = area_weighted_total(field, cell_area_like(field))
+
+    assert abs(total - 5.10e14) / 5.10e14 < 0.001
+
+
+def test_areas_follow_the_fields_own_latitudes():
+    from fishmip_cesm.diagnostics import cell_area_like
+
+    field = xr.DataArray(
+        np.ones((180, 360)),
+        dims=("lat", "lon"),
+        coords={
+            "lat": np.arange(-89.5, 90.0, 1.0),
+            "lon": np.arange(-179.5, 180.0, 1.0),
+        },
+    )
+
+    area = cell_area_like(field)
+
+    np.testing.assert_array_equal(area["lon"].values, field["lon"].values)

@@ -19,7 +19,7 @@ import xarray as xr
 
 from fishmip_cesm.diagnostics import (
     area_weighted_total,
-    onedeg_cell_area,
+    cell_area_like,
     to_pg_c_per_year,
 )
 
@@ -39,7 +39,7 @@ def main() -> int:
         field = dataset["intpp"]
         year = args.year or int(str(field["time"].values[0])[:4])
         annual = field.sel(time=str(year)).mean("time")
-        total = to_pg_c_per_year(area_weighted_total(annual, onedeg_cell_area()))
+        total = to_pg_c_per_year(area_weighted_total(annual, cell_area_like(annual)))
 
     low, high = _PLAUSIBLE
     verdict = "ok" if low <= total <= high else "OUT OF RANGE"
